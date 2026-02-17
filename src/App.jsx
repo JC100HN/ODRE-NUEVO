@@ -9,23 +9,22 @@ function App() {
   const [planDelDia, setPlanDelDia] = useState([]);
   const [director, setDirector] = useState("");
 
-  // 1. Cargar canciones de la tabla 'songs'
   useEffect(() => {
     async function cargarDatos() {
-      const { data } = await supabase.from('CANCIONES').select('*');
-      setCancionesTotales(data || []);
+      // IMPORTANTE: Si tu tabla no se llama 'songs', cambia 'songs' por el nombre real aquí abajo
+      const { data, error } = await supabase.from('songs').select('*');
+      if (error) console.error("Error cargando canciones:", error);
+      else setCancionesTotales(data || []);
     }
     cargarDatos();
   }, []);
 
-  // 2. Agregar canción a la lista temporal
   const agregarAlPlan = (cancion) => {
     if (!planDelDia.find(c => c.id === cancion.id)) {
       setPlanDelDia([...planDelDia, cancion]);
     }
   };
 
-  // 3. Guardar en la tabla 'planes_culto'
   const guardarEnBaseDeDatos = async () => {
     const fechaFormateada = fecha.toISOString().split('T')[0];
     const { error } = await supabase
@@ -36,11 +35,8 @@ function App() {
         canciones: planDelDia 
       });
 
-    if (error) {
-      alert("Error al guardar: " + error.message);
-    } else {
-      alert("¡Plan guardado con éxito para el día " + fechaFormateada + "!");
-    }
+    if (error) alert("Error al guardar: " + error.message);
+    else alert("¡Plan guardado con éxito para el " + fechaFormateada + "!");
   };
 
   return (
@@ -49,50 +45,48 @@ function App() {
       
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
         
-        {/* SECCIÓN CALENDARIO */}
+        {/* COLUMNA CALENDARIO */}
         <div style={{ flex: '1', minWidth: '300px', backgroundColor: '#1a1a1a', padding: '20px', borderRadius: '15px' }}>
           <h3>1. Selecciona la Fecha</h3>
-          <div style={{ color: '#000', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ color: '#000', borderRadius: '10px', overflow: 'hidden' }}>
             <Calendar onChange={setFecha} value={fecha} />
           </div>
           <p style={{ marginTop: '15px', textAlign: 'center' }}>Día elegido: <strong>{fecha.toLocaleDateString()}</strong></p>
-          
           <input 
             type="text" 
             placeholder="Nombre del Director" 
             value={director}
             onChange={(e) => setDirector(e.target.value)}
-            style={{ width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: 'none', fontSize: '16px' }}
+            style={{ width: '92%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: 'none' }}
           />
         </div>
 
-        {/* SECCIÓN PLAN DEL DÍA */}
+        {/* COLUMNA PLAN Y REPERTORIO */}
         <div style={{ flex: '1', minWidth: '300px', backgroundColor: '#1a1a1a', padding: '20px', borderRadius: '15px' }}>
           <h3>2. Plan del Culto ({planDelDia.length})</h3>
-          <div style={{ backgroundColor: '#222', padding: '10px', borderRadius: '10px', minHeight: '150px', marginBottom: '15px', border: '1px dashed #444' }}>
-            {planDelDia.length === 0 && <p style={{ color: '#888', textAlign: 'center' }}>No hay canciones seleccionadas</p>}
+          <div style={{ backgroundColor: '#222', padding: '10px', borderRadius: '10px', minHeight: '100px', marginBottom: '15px' }}>
             {planDelDia.map(c => (
-              <div key={c.id} style={{ padding: '8px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between' }}>
-                <span>✅ {c.title}</span>
+              <div key={c.id} style={{ padding: '8px', borderBottom: '1px solid #333' }}>
+                ✅ {c.title} <span style={{ color: '#3b82f6', fontSize: '0.8em' }}>({c.key})</span>
               </div>
             ))}
           </div>
           
-          <button 
-            onClick={guardarEnBaseDeDatos}
-            style={{ width: '100%', padding: '15px', backgroundColor: '#22c55e', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}
-          >
+          <button onClick={guardarEnBaseDeDatos} style={{ width: '100%', padding: '15px', backgroundColor: '#22c55e', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '20px' }}>
             CONFIRMAR Y GUARDAR PLAN
           </button>
 
-          <h3 style={{ marginTop: '25px' }}>3. Repertorio Disponible</h3>
-          <div style={{ maxHeight: '300px', overflowY: 'auto', backgroundColor: '#111', borderRadius: '10px', padding: '10px' }}>
+          <h3>3. Repertorio (Notas y Tonos)</h3>
+          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
             {cancionesTotales.map(c => (
-              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid #222' }}>
-                <span>{c.title}</span>
+              <div key={c.id} style={{ backgroundColor: '#222', margin: '10px 0', padding: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>{c.title}</div>
+                  <div style={{ color: '#3b82f6', fontSize: '0.9em' }}>Tono: {c.key} | Nota: {c.note}</div>
+                </div>
                 <button 
                   onClick={() => agregarAlPlan(c)} 
-                  style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '5px', padding: '5px 12px', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer', fontSize: '20px' }}
                 >
                   +
                 </button>
