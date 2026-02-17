@@ -4,11 +4,12 @@ import { Transposer } from 'chord-transposer'
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+// Librerías de reordenamiento
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, TouchSensor } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// --- COMPONENTE: ITEM DE CANCIÓN ---
+// --- COMPONENTE: ITEM REORDENABLE ---
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const [misSemitonos, setMisSemitonos] = useState(0);
@@ -25,31 +26,33 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }
     transition,
     zIndex: isDragging ? 100 : 1,
     opacity: isDragging ? 0.6 : 1,
-    marginBottom: '5px',
-    borderRadius: '6px',
-    border: '1px solid #333',
+    marginBottom: '8px',
+    borderRadius: '8px',
+    border: estaAbierta ? '1px solid #4da6ff' : '1px solid #333',
     backgroundColor: '#111',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    touchAction: 'none' // Importante para que el celular no se mueva mientras arrastras
   };
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div style={estaAbierta ? estilos.acordeonHeaderActivo : estilos.acordeonHeader} onClick={() => setCancionAbierta(estaAbierta ? null : c.id)}>
-        <div style={estilos.tituloAcordeon}>
+      <div style={estaAbierta ? estilos.acordeonHeaderActivo : estilos.acordeonHeader}>
+        <div style={estilos.tituloAcordeon} onClick={() => setCancionAbierta(estaAbierta ? null : c.id)}>
+          {/* Este icono ☰ es el que recibe los eventos de arrastre */}
           <span {...attributes} {...listeners} style={estilos.dragHandle}>☰</span>
           <div style={{display: 'flex', flexDirection: 'column'}}>
-            <span style={{fontSize: '0.8rem'}}>{c.titulo} <b style={{color: '#4da6ff', fontSize: '0.7rem'}}>{transponerIndividual(c.tono || c.key, misSemitonos)}</b></span>
-            {/* CAMBIO AQUÍ: Ahora usa c.artista */}
-            <small style={{color: '#888', fontSize: '0.6rem'}}>{c.artista || 'Sin Artista'}</small>
+            <span style={{fontSize: '0.85rem'}}>{c.titulo} <b style={{color: '#4da6ff', fontSize: '0.75rem'}}>{transponerIndividual(c.tono || c.key, misSemitonos)}</b></span>
+            <small style={{color: '#888', fontSize: '0.65rem'}}>{c.artista || 'Artista'}</small>
           </div>
         </div>
-        <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
-            <div style={estilos.miniTransporte} onClick={(e) => e.stopPropagation()}>
+        
+        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+            <div style={estilos.miniTransporte}>
                 <button onClick={() => setMisSemitonos(s => s - 1)} style={estilos.btnXSmall}>-</button>
-                <span style={{fontSize: '0.6rem'}}>{misSemitonos}</span>
+                <span style={{fontSize: '0.7rem', color: '#fff'}}>{misSemitonos}</span>
                 <button onClick={() => setMisSemitonos(s => s + 1)} style={estilos.btnXSmall}>+</button>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); quitarDelSetlist(c.id); }} style={estilos.btnQuitar}>×</button>
+            <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnQuitar}>×</button>
         </div>
       </div>
       {estaAbierta && (
@@ -61,6 +64,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }
   );
 }
 
+// --- COMPONENTE PRINCIPAL ---
 export default function App() {
   const [fecha, setFecha] = useState(new Date());
   const [director, setDirector] = useState("");
@@ -69,8 +73,10 @@ export default function App() {
   const [cancionAbierta, setCancionAbierta] = useState(null);
   const [setlist, setSetlist] = useState([]);
 
+  // Configuración de sensores para detectar dedo (Touch) y mouse (Pointer)
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -98,6 +104,7 @@ export default function App() {
   }, [fecha]);
 
   const agregarAlSetlist = (cancion) => {
+    // Generamos un ID único para el setlist para que se puedan repetir canciones si es necesario
     setSetlist(prev => [...prev, { ...cancion, id: `${cancion.id}-${Date.now()}` }]);
   };
 
@@ -116,7 +123,7 @@ export default function App() {
     const fechaISO = fecha.toISOString().split('T')[0];
     const { error } = await supabase.from('planes_culto').upsert({ fecha: fechaISO, director: director, canciones: setlist });
     if (error) alert("Error: " + error.message);
-    else alert("¡Plan actualizado!");
+    else alert("¡Orden guardado correctamente!");
   };
 
   return (
@@ -125,10 +132,9 @@ export default function App() {
       
       <div style={estilos.seccionCalendario}>
           <Calendar onChange={setFecha} value={fecha} className="calendario-custom" />
-          <div style={{marginTop: '12px', padding: '0 5px'}}>
-            <label style={{color: '#555', fontSize: '0.7rem', fontWeight: 'bold', display: 'block', marginBottom: '4px'}}>DIRECTOR DEL CULTO:</label>
+          <div style={{marginTop: '12px'}}>
             <input 
-                type="text" placeholder="Nombre..." value={director}
+                type="text" placeholder="Nombre del Director..." value={director}
                 onChange={(e) => setDirector(e.target.value)}
                 style={estilos.inputDirector}
             />
@@ -136,26 +142,32 @@ export default function App() {
       </div>
 
       <header style={{paddingBottom: '10px'}}>
-        <input type="text" placeholder="🔍 Buscar canción o artista..." value={busqueda}
+        <input type="text" placeholder="🔍 Buscar alabanza o artista..." value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)} style={estilos.buscador} />
       </header>
 
       <section style={{maxWidth: '500px', margin: '0 auto'}}>
-        <h3 style={estilos.subtitulo}>📅 PLAN ({setlist.length})</h3>
+        <h3 style={estilos.subtitulo}>ORDEN DEL CULTO ({setlist.length})</h3>
+        
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {setlist.map((c) => (
-              <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
-                quitarDelSetlist={(id) => setSetlist(setlist.filter(item => item.id !== id))} />
+              <ItemSortable 
+                key={c.id} 
+                c={c} 
+                cancionAbierta={cancionAbierta} 
+                setCancionAbierta={setCancionAbierta}
+                quitarDelSetlist={(id) => setSetlist(setlist.filter(item => item.id !== id))} 
+              />
             ))}
           </SortableContext>
         </DndContext>
 
         {setlist.length > 0 && (
-          <button onClick={guardarEnBaseDeDatos} style={estilos.btnGuardar}>💾 GUARDAR TODO</button>
+          <button onClick={guardarEnBaseDeDatos} style={estilos.btnGuardar}>💾 ACTUALIZAR ORDEN</button>
         )}
 
-        <div style={estilos.divisor}>REPERTORIO</div>
+        <div style={estilos.divisor}>BIBLIOTECA</div>
         <div style={estilos.grid}>
           {canciones.filter(c => 
             (c.titulo || "").toLowerCase().includes(busqueda.toLowerCase()) || 
@@ -163,8 +175,7 @@ export default function App() {
           ).map((c) => (
             <div key={c.id} style={estilos.itemRepo}>
               <div style={{display: 'flex', flexDirection: 'column'}}>
-                <span style={{fontSize: '0.8rem', textTransform: 'uppercase'}}>{c.titulo} <small style={{color: '#4da6ff'}}>({c.tono || c.key})</small></span>
-                {/* CAMBIO AQUÍ: Ahora busca c.artista */}
+                <span style={{fontSize: '0.85rem', textTransform: 'uppercase'}}>{c.titulo}</span>
                 <small style={{color: '#666', fontSize: '0.65rem'}}>{c.artista || 'Artista'}</small>
               </div>
               <button onClick={() => agregarAlSetlist(c)} style={estilos.btnPlus}>+</button>
@@ -174,8 +185,9 @@ export default function App() {
       </section>
       
       <style>{`
-        .calendario-custom { width: 100% !important; border: none !important; border-radius: 8px; font-size: 0.85rem; background: white !important; color: black !important; }
-        .react-calendar__tile { color: black !important; padding: 10px 5px !important; }
+        .calendario-custom { width: 100% !important; border: none !important; border-radius: 12px; font-size: 0.85rem; background: white !important; color: black !important; padding: 5px; }
+        .react-calendar__tile { color: black !important; padding: 12px 5px !important; }
+        .react-calendar__tile--active { background: #3b82f6 !important; color: white !important; border-radius: 8px; }
         .react-calendar__navigation button { color: black !important; font-weight: bold; }
       `}</style>
     </div>
@@ -183,24 +195,24 @@ export default function App() {
 }
 
 const estilos = {
-  pantalla: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', fontFamily: 'sans-serif' },
-  logo: { color: '#4da6ff', fontSize: '1.2rem', textAlign: 'center', margin: '10px 0', fontWeight: 'bold' },
-  buscador: { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#111', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' },
-  seccionCalendario: { background: '#fff', padding: '12px', borderRadius: '12px', marginBottom: '15px' },
-  inputDirector: { width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', fontSize: '1rem', color: '#000', backgroundColor: '#f1f5f9', boxSizing: 'border-box' },
-  subtitulo: { color: '#888', fontSize: '0.65rem', marginBottom: '10px', textAlign: 'center' },
-  acordeonHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#161616' },
-  acordeonHeaderActivo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#1e3a8a' },
-  tituloAcordeon: { fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' },
-  dragHandle: { color: '#666', cursor: 'grab', fontSize: '1.2rem', marginRight: '5px' },
-  acordeonContent: { padding: '12px', background: '#050505' },
-  letra: { whiteSpace: 'pre-wrap', fontSize: '0.85rem', lineHeight: '1.4', fontFamily: 'monospace', color: '#ddd' },
-  btnQuitar: { background: 'none', border: 'none', color: '#ef4444', fontSize: '1.2rem' },
-  miniTransporte: { display: 'flex', alignItems: 'center', gap: '4px', background: '#000', padding: '3px 8px', borderRadius: '12px', border: '1px solid #333' },
-  btnXSmall: { background: 'none', border: 'none', color: '#4da6ff', fontSize: '1rem' },
-  btnGuardar: { width: '100%', padding: '14px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '10px' },
-  divisor: { textAlign: 'center', color: '#444', margin: '30px 0 15px 0', fontSize: '0.6rem', letterSpacing: '2px' },
-  grid: { display: 'flex', flexDirection: 'column', gap: '6px' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#111', borderRadius: '8px', border: '1px solid #222' },
-  btnPlus: { background: '#3b82f6', border: 'none', color: '#fff', width: '30px', height: '30px', borderRadius: '50%', fontSize: '1.2rem' }
+  pantalla: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '12px', fontFamily: 'sans-serif' },
+  logo: { color: '#4da6ff', fontSize: '1.4rem', textAlign: 'center', margin: '10px 0', fontWeight: 'bold', letterSpacing: '1px' },
+  buscador: { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #333', backgroundColor: '#111', color: '#fff', fontSize: '0.9rem', boxSizing: 'border-box' },
+  seccionCalendario: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '20px' },
+  inputDirector: { width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', fontSize: '1rem', color: '#000', backgroundColor: '#f8fafc', boxSizing: 'border-box' },
+  subtitulo: { color: '#4da6ff', fontSize: '0.7rem', marginBottom: '12px', textAlign: 'left', fontWeight: 'bold', letterSpacing: '1px' },
+  acordeonHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#161616', cursor: 'pointer' },
+  acordeonHeaderActivo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#1e3a8a', cursor: 'pointer' },
+  tituloAcordeon: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
+  dragHandle: { color: '#444', cursor: 'grab', fontSize: '1.4rem', padding: '0 5px', userSelect: 'none' },
+  acordeonContent: { padding: '15px', background: '#050505', borderTop: '1px solid #222' },
+  letra: { whiteSpace: 'pre-wrap', fontSize: '0.9rem', lineHeight: '1.5', fontFamily: 'monospace', color: '#eee' },
+  btnQuitar: { background: 'none', border: 'none', color: '#ef4444', fontSize: '1.4rem', fontWeight: 'bold', padding: '0 10px' },
+  miniTransporte: { display: 'flex', alignItems: 'center', gap: '6px', background: '#000', padding: '4px 10px', borderRadius: '20px', border: '1px solid #333' },
+  btnXSmall: { background: 'none', border: 'none', color: '#4da6ff', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer' },
+  btnGuardar: { width: '100%', padding: '16px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', marginTop: '15px', cursor: 'pointer' },
+  divisor: { textAlign: 'center', color: '#333', margin: '40px 0 20px 0', fontSize: '0.6rem', letterSpacing: '3px', fontWeight: 'bold' },
+  grid: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  itemRepo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#111', borderRadius: '10px', border: '1px solid #222' },
+  btnPlus: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontSize: '1.4rem', fontWeight: 'bold' }
 }
