@@ -42,7 +42,7 @@ if (error) {
 
 return (
 <div style={{ padding: '20px', backgroundColor: '#000', color: '#fff', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-<h1 style={{ color: '#3b82f6' }}>🎸 Odre Nuevo: Gestión de Cultos</h1>
+<h1 style={{ color: '#3b82f6' }}>🎸 Odre Nuevo: - V2</h1>
 
   <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
     <div style={{ flex: '1', minWidth: '300px', backgroundColor: '#1a1a1a', padding: '20px', borderRadius: '15px' }}>
