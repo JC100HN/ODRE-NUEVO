@@ -12,7 +12,7 @@ function App() {
   // 1. Cargar canciones de la tabla 'songs'
   useEffect(() => {
     async function cargarDatos() {
-      const { data } = await supabase.from('songs').select('*');
+      const { data } = await supabase.from('CANCIONES').select('*');
       setCancionesTotales(data || []);
     }
     cargarDatos();
