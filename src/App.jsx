@@ -4,12 +4,11 @@ import { Transposer } from 'chord-transposer'
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 
-// Librerías de reordenamiento
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, TouchSensor } from '@dnd-kit/core'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// --- COMPONENTE: CADA CANCIÓN EN EL PLAN (SORTABLE) ---
+// --- COMPONENTE: ITEM DEL PLAN ---
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const [misSemitonos, setMisSemitonos] = useState(0);
@@ -28,42 +27,40 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }
     opacity: isDragging ? 0.6 : 1,
     marginBottom: '8px',
     borderRadius: '8px',
-    border: estaAbierta ? '1px solid #4da6ff' : '1px solid #333',
+    border: '1px solid #333',
     backgroundColor: '#111',
-    overflow: 'hidden',
-    touchAction: 'none' 
+    touchAction: 'none'
   };
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div style={estaAbierta ? estilos.acordeonHeaderActivo : estilos.acordeonHeader}>
-        <div style={estilos.tituloAcordeon} onClick={() => setCancionAbierta(estaAbierta ? null : c.id)}>
-          <span {...attributes} {...listeners} style={estilos.dragHandle}>☰</span>
+      <div style={estaAbierta ? estilos.headerActivo : estilos.headerNormal}>
+        <div style={estilos.infoCuerpo} onClick={() => setCancionAbierta(estaAbierta ? null : c.id)}>
+          <span {...attributes} {...listeners} style={estilos.manubrio}>☰</span>
           <div style={{display: 'flex', flexDirection: 'column'}}>
-            <span style={{fontSize: '0.85rem', color: '#fff'}}>{c.titulo} <b style={{color: '#4da6ff', fontSize: '0.75rem'}}>{transponerIndividual(c.tono || c.key, misSemitonos)}</b></span>
+            <span style={{fontSize: '0.85rem', color: '#fff'}}>{c.titulo} <b style={{color: '#4da6ff'}}>{transponerIndividual(c.tono || c.key, misSemitonos)}</b></span>
             <small style={{color: '#888', fontSize: '0.65rem'}}>{c.artista || 'Artista'}</small>
           </div>
         </div>
-        
-        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-            <div style={estilos.miniTransporte}>
-                <button onClick={() => setMisSemitonos(s => s - 1)} style={estilos.btnXSmall}>-</button>
-                <span style={{fontSize: '0.7rem', color: '#fff'}}>{misSemitonos}</span>
-                <button onClick={() => setMisSemitonos(s => s + 1)} style={estilos.btnXSmall}>+</button>
-            </div>
-            <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnQuitar}>×</button>
+        <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+          <div style={estilos.transporte}>
+            <button onClick={(e) => { e.stopPropagation(); setMisSemitonos(s => s - 1); }} style={estilos.btnT}>-</button>
+            <span style={{fontSize: '0.7rem'}}>{misSemitonos}</span>
+            <button onClick={(e) => { e.stopPropagation(); setMisSemitonos(s => s + 1); }} style={estilos.btnT}>+</button>
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); quitarDelSetlist(c.id); }} style={estilos.btnX}>×</button>
         </div>
       </div>
       {estaAbierta && (
-        <div style={estilos.acordeonContent}>
-          <pre style={estilos.letra}>{transponerIndividual(c.letra || c.lyrics, misSemitonos)}</pre>
+        <div style={estilos.contenido}>
+          <pre style={estilos.letraPre}>{transponerIndividual(c.letra || c.lyrics, misSemitonos)}</pre>
         </div>
       )}
     </div>
   );
 }
 
-// --- COMPONENTE PRINCIPAL ---
+// --- APP PRINCIPAL ---
 export default function App() {
   const [fecha, setFecha] = useState(new Date());
   const [director, setDirector] = useState("");
@@ -71,6 +68,7 @@ export default function App() {
   const [busqueda, setBusqueda] = useState('');
   const [cancionAbierta, setCancionAbierta] = useState(null);
   const [setlist, setSetlist] = useState([]);
+  const [existePlan, setExistePlan] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -78,35 +76,32 @@ export default function App() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // 1. CARGAR REPERTORIO (Tabla: CANCIONES)
+  const fechaLegible = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+
   useEffect(() => {
-    const traerCanciones = async () => {
-      const { data, error } = await supabase.from('CANCIONES').select('*').order('titulo', { ascending: true })
-      if (error) console.error("Error cargando tabla CANCIONES:", error.message);
+    const cargarDatos = async () => {
+      const { data } = await supabase.from('CANCIONES').select('*').order('titulo', { ascending: true });
       if (data) setCanciones(data.map((c, i) => ({ ...c, id: c.id || `id-${i}` })));
-    }
-    traerCanciones()
+    };
+    cargarDatos();
   }, []);
 
-  // 2. CONSULTAR PLAN AL CAMBIAR FECHA (Tabla: planes_culto)
   useEffect(() => {
-    const consultarPlan = async () => {
+    const cargarPlan = async () => {
       const fechaISO = fecha.toISOString().split('T')[0];
       const { data } = await supabase.from('planes_culto').select('*').eq('fecha', fechaISO).maybeSingle();
       if (data) {
         setDirector(data.director || "");
         setSetlist(data.canciones || []);
+        setExistePlan(true);
       } else {
         setDirector("");
         setSetlist([]);
+        setExistePlan(false);
       }
     };
-    consultarPlan();
+    cargarPlan();
   }, [fecha]);
-
-  const agregarAlSetlist = (cancion) => {
-    setSetlist(prev => [...prev, { ...cancion, id: `${cancion.id}-${Date.now()}` }]);
-  };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -119,101 +114,115 @@ export default function App() {
     }
   };
 
-  const guardarEnBaseDeDatos = async () => {
+  const guardar = async () => {
     const fechaISO = fecha.toISOString().split('T')[0];
-    const { error } = await supabase.from('planes_culto').upsert({ fecha: fechaISO, director: director, canciones: setlist });
-    if (error) alert("Error al guardar: " + error.message);
-    else alert("¡Plan guardado exitosamente!");
+    const { error } = await supabase.from('planes_culto').upsert({ fecha: fechaISO, director, canciones: setlist });
+    if (error) alert("Error: " + error.message);
+    else { alert("¡Plan guardado!"); setExistePlan(true); }
+  };
+
+  const borrarPlan = async () => {
+    if (window.confirm(`¿Seguro que quieres borrar el plan del ${fechaLegible}?`)) {
+      const fechaISO = fecha.toISOString().split('T')[0];
+      const { error } = await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
+      if (error) alert("Error: " + error.message);
+      else {
+        alert("Plan eliminado");
+        setSetlist([]);
+        setDirector("");
+        setExistePlan(false);
+      }
+    }
+  };
+
+  const compartirWhatsApp = () => {
+    let texto = `🎸 *ODRE NUEVO - PLAN DE CULTO*\n📅 *Fecha:* ${fechaLegible}\n👤 *Director:* ${director || 'No asignado'}\n\n*LISTA DE CANCIONES:*\n`;
+    setlist.forEach((c, index) => {
+      texto += `${index + 1}. ${c.titulo.toUpperCase()} (${c.tono || c.key})\n`;
+    });
+    texto += `\n_Preparémonos para adorar con excelencia._`;
+    
+    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
   };
 
   return (
-    <div style={estilos.pantalla}>
+    <div style={estilos.fondo}>
       <h2 style={estilos.logo}>🎸 Odre Nuevo</h2>
       
-      <div style={estilos.seccionCalendario}>
-          <Calendar onChange={setFecha} value={fecha} className="calendario-custom" />
-          <div style={{marginTop: '15px'}}>
-            <label style={{color: '#333', fontSize: '0.7rem', fontWeight: 'bold', display: 'block', marginBottom: '5px'}}>DIRECTOR:</label>
-            <input 
-                type="text" placeholder="Escribir nombre..." value={director}
-                onChange={(e) => setDirector(e.target.value)}
-                style={estilos.inputDirector}
-            />
-          </div>
+      <div style={estilos.cajaBlanca}>
+        <Calendar onChange={setFecha} value={fecha} className="mini-cal" />
+        <div style={{marginTop: '10px'}}>
+          <input type="text" placeholder="Nombre del Director..." value={director} 
+                 onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
+        </div>
       </div>
 
-      <header style={{paddingBottom: '10px'}}>
-        <input type="text" placeholder="🔍 Buscar canción o artista..." value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)} style={estilos.buscador} />
-      </header>
+      <input type="text" placeholder="🔍 Buscar alabanza o artista..." value={busqueda} 
+             onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
 
-      <section style={{maxWidth: '500px', margin: '0 auto'}}>
-        <h3 style={estilos.subtitulo}>PLAN DEL DÍA ({setlist.length})</h3>
+      <div style={{maxWidth: '500px', margin: '0 auto'}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+            <h4 style={estilos.seccionTitle}>PLAN: <span style={{color: '#fff', textTransform: 'capitalize'}}>{fechaLegible}</span></h4>
+            {setlist.length > 0 && (
+                <button onClick={compartirWhatsApp} style={estilos.btnWhatsApp}>📱</button>
+            )}
+        </div>
         
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            {setlist.map((c) => (
-              <ItemSortable 
-                key={c.id} 
-                c={c} 
-                cancionAbierta={cancionAbierta} 
-                setCancionAbierta={setCancionAbierta}
-                quitarDelSetlist={(id) => setSetlist(setlist.filter(item => item.id !== id))} 
-              />
+            {setlist.map(c => (
+              <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
+                            quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} />
             ))}
           </SortableContext>
         </DndContext>
 
-        {setlist.length > 0 && (
-          <button onClick={guardarEnBaseDeDatos} style={estilos.btnGuardar}>💾 GUARDAR PLAN</button>
-        )}
+        <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+          <button onClick={guardar} style={estilos.btnG}>💾 GUARDAR</button>
+          {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
+        </div>
 
         <div style={estilos.divisor}>BIBLIOTECA</div>
-        <div style={estilos.grid}>
-          {canciones.filter(c => 
-            (c.titulo || "").toLowerCase().includes(busqueda.toLowerCase()) || 
-            (c.artista || "").toLowerCase().includes(busqueda.toLowerCase())
-          ).map((c) => (
-            <div key={c.id} style={estilos.itemRepo}>
-              <div style={{display: 'flex', flexDirection: 'column'}}>
-                <span style={{fontSize: '0.85rem', textTransform: 'uppercase', color: '#fff'}}>{c.titulo}</span>
-                <small style={{color: '#666', fontSize: '0.65rem'}}>{c.artista || 'Artista'}</small>
-              </div>
-              <button onClick={() => agregarAlSetlist(c)} style={estilos.btnPlus}>+</button>
+        {canciones.filter(c => (c.titulo + c.artista).toLowerCase().includes(busqueda.toLowerCase())).map(c => (
+          <div key={c.id} style={estilos.itemRepo}>
+            <div>
+              <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
+              <div style={{fontSize: '0.65rem', color: '#666'}}>{c.artista || 'Artista'}</div>
             </div>
-          ))}
-        </div>
-      </section>
-      
+            <button onClick={() => setSetlist([...setlist, {...c, id: Date.now()}])} style={estilos.btnP}>+</button>
+          </div>
+        ))}
+      </div>
+
       <style>{`
-        .calendario-custom { width: 100% !important; border: none !important; border-radius: 12px; font-size: 0.85rem; background: white !important; color: black !important; padding: 5px; }
-        .react-calendar__tile { color: black !important; padding: 12px 5px !important; }
-        .react-calendar__tile--active { background: #3b82f6 !important; color: white !important; border-radius: 8px; }
-        .react-calendar__navigation button { color: black !important; font-weight: bold; }
+        .mini-cal { width: 100% !important; border: none !important; font-family: sans-serif; }
+        .react-calendar__tile--active { background: #3b82f6 !important; border-radius: 5px; }
       `}</style>
     </div>
   )
 }
 
 const estilos = {
-  pantalla: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '12px', fontFamily: 'sans-serif' },
-  logo: { color: '#4da6ff', fontSize: '1.4rem', textAlign: 'center', margin: '10px 0', fontWeight: 'bold' },
-  buscador: { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #333', backgroundColor: '#111', color: '#fff', fontSize: '0.9rem', boxSizing: 'border-box' },
-  seccionCalendario: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '20px' },
-  inputDirector: { width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', fontSize: '1rem', color: '#000', backgroundColor: '#f1f5f9', boxSizing: 'border-box' },
-  subtitulo: { color: '#888', fontSize: '0.65rem', marginBottom: '10px', textAlign: 'center', letterSpacing: '1px' },
-  acordeonHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#161616', cursor: 'pointer' },
-  acordeonHeaderActivo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#1e3a8a', cursor: 'pointer' },
-  tituloAcordeon: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
-  dragHandle: { color: '#444', cursor: 'grab', fontSize: '1.4rem', padding: '0 5px' },
-  acordeonContent: { padding: '15px', background: '#050505', borderTop: '1px solid #222' },
-  letra: { whiteSpace: 'pre-wrap', fontSize: '0.9rem', lineHeight: '1.5', fontFamily: 'monospace', color: '#eee' },
-  btnQuitar: { background: 'none', border: 'none', color: '#ef4444', fontSize: '1.4rem', fontWeight: 'bold' },
-  miniTransporte: { display: 'flex', alignItems: 'center', gap: '6px', background: '#000', padding: '4px 8px', borderRadius: '20px', border: '1px solid #333' },
-  btnXSmall: { background: 'none', border: 'none', color: '#4da6ff', fontSize: '1.2rem', fontWeight: 'bold' },
-  btnGuardar: { width: '100%', padding: '16px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', marginTop: '15px' },
-  divisor: { textAlign: 'center', color: '#333', margin: '40px 0 20px 0', fontSize: '0.6rem', letterSpacing: '2px' },
-  grid: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#111', borderRadius: '10px', border: '1px solid #222' },
-  btnPlus: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontSize: '1.4rem' }
-}// Cambio final.
+  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '15px', fontFamily: 'sans-serif' },
+  logo: { textAlign: 'center', color: '#4da6ff', marginBottom: '15px', fontWeight: 'bold' },
+  cajaBlanca: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '15px' },
+  inputDir: { width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', color: '#000', fontSize: '1rem' },
+  search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '15px' },
+  seccionTitle: { color: '#4da6ff', fontSize: '0.75rem', letterSpacing: '1px', margin: 0 },
+  btnWhatsApp: { background: '#25D366', border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '1.2rem', cursor: 'pointer' },
+  headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616' },
+  headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a' },
+  infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
+  manubrio: { cursor: 'grab', fontSize: '1.2rem', color: '#444' },
+  transporte: { display: 'flex', alignItems: 'center', gap: '5px', background: '#000', padding: '2px 8px', borderRadius: '15px' },
+  btnT: { background: 'none', border: 'none', color: '#4da6ff', fontSize: '1.1rem', fontWeight: 'bold' },
+  btnX: { background: 'none', border: 'none', color: '#ef4444', fontSize: '1.3rem' },
+  contenido: { padding: '15px', background: '#050505' },
+  letraPre: { whiteSpace: 'pre-wrap', fontSize: '0.9rem', color: '#ccc', fontFamily: 'monospace' },
+  btnG: { flex: 4, padding: '15px', background: '#10b981', border: 'none', borderRadius: '10px', fontWeight: 'bold', color: '#fff' },
+  btnBorrar: { flex: 1, padding: '15px', background: '#333', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '1.1rem' },
+  divisor: { textAlign: 'center', margin: '30px 0 15px', color: '#333', fontSize: '0.6rem', fontWeight: 'bold', letterSpacing: '2px' },
+  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '6px', border: '1px solid #222' },
+  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontWeight: 'bold' }
+}
