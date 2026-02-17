@@ -216,4 +216,4 @@ const estilos = {
   grid: { display: 'flex', flexDirection: 'column', gap: '8px' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#111', borderRadius: '10px', border: '1px solid #222' },
   btnPlus: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontSize: '1.4rem' }
-}
+}// Cambio final.
