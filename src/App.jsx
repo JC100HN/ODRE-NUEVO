@@ -8,7 +8,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// --- COMPONENTE: ITEM DEL PLAN ---
+// --- COMPONENTE: ITEM DEL PLAN (ORDENABLE) ---
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const [misSemitonos, setMisSemitonos] = useState(0);
@@ -141,7 +141,6 @@ export default function App() {
       texto += `${index + 1}. ${c.titulo.toUpperCase()} (${c.tono || c.key})\n`;
     });
     texto += `\n_Preparémonos para adorar con excelencia._`;
-    
     const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank');
   };
@@ -152,7 +151,7 @@ export default function App() {
       
       <div style={estilos.cajaBlanca}>
         <Calendar onChange={setFecha} value={fecha} className="mini-cal" />
-        <div style={{marginTop: '10px'}}>
+        <div style={{marginTop: '10px', width: '100%', display: 'flex', justifyContent: 'center'}}>
           <input type="text" placeholder="Nombre del Director..." value={director} 
                  onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
         </div>
@@ -186,7 +185,7 @@ export default function App() {
         <div style={estilos.divisor}>BIBLIOTECA</div>
         {canciones.filter(c => (c.titulo + c.artista).toLowerCase().includes(busqueda.toLowerCase())).map(c => (
           <div key={c.id} style={estilos.itemRepo}>
-            <div>
+            <div style={{flex: 1}}>
               <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
               <div style={{fontSize: '0.65rem', color: '#666'}}>{c.artista || 'Artista'}</div>
             </div>
@@ -196,8 +195,18 @@ export default function App() {
       </div>
 
       <style>{`
-        .mini-cal { width: 100% !important; border: none !important; font-family: sans-serif; }
-        .react-calendar__tile--active { background: #3b82f6 !important; border-radius: 5px; }
+        .mini-cal { 
+          width: 100% !important; 
+          border: none !important; 
+          font-family: sans-serif; 
+          font-size: 0.8rem !important;
+        }
+        .react-calendar__tile {
+          padding: 8px 4px !important;
+          font-size: 0.75rem;
+        }
+        .react-calendar__tile--active { background: #3b82f6 !important; border-radius: 5px; color: white !important; }
+        .react-calendar__month-view__days__day--neighboringMonth { color: #ccc !important; }
       `}</style>
     </div>
   )
@@ -206,11 +215,11 @@ export default function App() {
 const estilos = {
   fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '15px', fontFamily: 'sans-serif' },
   logo: { textAlign: 'center', color: '#4da6ff', marginBottom: '15px', fontWeight: 'bold' },
-  cajaBlanca: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '15px' },
-  inputDir: { width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', color: '#000', fontSize: '1rem' },
-  search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '15px' },
+  cajaBlanca: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  inputDir: { width: '100%', maxWidth: '280px', padding: '10px', borderRadius: '8px', border: '2px solid #3b82f6', color: '#000', fontSize: '0.9rem', textAlign: 'center' },
+  search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '15px', boxSizing: 'border-box' },
   seccionTitle: { color: '#4da6ff', fontSize: '0.75rem', letterSpacing: '1px', margin: 0 },
-  btnWhatsApp: { background: '#25D366', border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '1.2rem', cursor: 'pointer' },
+  btnWhatsApp: { background: '#25D366', border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '1.2rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
@@ -221,7 +230,7 @@ const estilos = {
   contenido: { padding: '15px', background: '#050505' },
   letraPre: { whiteSpace: 'pre-wrap', fontSize: '0.9rem', color: '#ccc', fontFamily: 'monospace' },
   btnG: { flex: 4, padding: '15px', background: '#10b981', border: 'none', borderRadius: '10px', fontWeight: 'bold', color: '#fff' },
-  btnBorrar: { flex: 1, padding: '15px', background: '#333', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '1.1rem' },
+  btnBorrar: { flex: 1, padding: '15px', background: '#333', border: 'none', borderRadius: '10px', color: '#fff' },
   divisor: { textAlign: 'center', margin: '30px 0 15px', color: '#333', fontSize: '0.6rem', fontWeight: 'bold', letterSpacing: '2px' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '6px', border: '1px solid #222' },
   btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontWeight: 'bold' }
