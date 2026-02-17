@@ -39,7 +39,8 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }
           <span {...attributes} {...listeners} style={estilos.dragHandle}>☰</span>
           <div style={{display: 'flex', flexDirection: 'column'}}>
             <span style={{fontSize: '0.8rem'}}>{c.titulo} <b style={{color: '#4da6ff', fontSize: '0.7rem'}}>{transponerIndividual(c.tono || c.key, misSemitonos)}</b></span>
-            <small style={{color: '#888', fontSize: '0.6rem'}}>{c.cantante || 'Artista'}</small>
+            {/* CAMBIO AQUÍ: Ahora usa c.artista */}
+            <small style={{color: '#888', fontSize: '0.6rem'}}>{c.artista || 'Sin Artista'}</small>
           </div>
         </div>
         <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
@@ -135,7 +136,7 @@ export default function App() {
       </div>
 
       <header style={{paddingBottom: '10px'}}>
-        <input type="text" placeholder="🔍 Buscar canción o cantante..." value={busqueda}
+        <input type="text" placeholder="🔍 Buscar canción o artista..." value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)} style={estilos.buscador} />
       </header>
 
@@ -158,12 +159,13 @@ export default function App() {
         <div style={estilos.grid}>
           {canciones.filter(c => 
             (c.titulo || "").toLowerCase().includes(busqueda.toLowerCase()) || 
-            (c.cantante || "").toLowerCase().includes(busqueda.toLowerCase())
+            (c.artista || "").toLowerCase().includes(busqueda.toLowerCase())
           ).map((c) => (
             <div key={c.id} style={estilos.itemRepo}>
               <div style={{display: 'flex', flexDirection: 'column'}}>
                 <span style={{fontSize: '0.8rem', textTransform: 'uppercase'}}>{c.titulo} <small style={{color: '#4da6ff'}}>({c.tono || c.key})</small></span>
-                <small style={{color: '#666', fontSize: '0.65rem'}}>{c.cantante || 'Artista'}</small>
+                {/* CAMBIO AQUÍ: Ahora busca c.artista */}
+                <small style={{color: '#666', fontSize: '0.65rem'}}>{c.artista || 'Artista'}</small>
               </div>
               <button onClick={() => agregarAlSetlist(c)} style={estilos.btnPlus}>+</button>
             </div>
