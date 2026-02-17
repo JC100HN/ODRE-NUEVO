@@ -69,6 +69,7 @@ export default function App() {
   const [cancionAbierta, setCancionAbierta] = useState(null);
   const [setlist, setSetlist] = useState([]);
   const [existePlan, setExistePlan] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState('Alabanza'); // Nuevo estado para el filtro
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -183,7 +184,19 @@ export default function App() {
         </div>
 
         <div style={estilos.divisor}>BIBLIOTECA</div>
-        {canciones.filter(c => (c.titulo + c.artista).toLowerCase().includes(busqueda.toLowerCase())).map(c => (
+        
+        {/* PESTAÑAS DE FILTRO */}
+        <div style={estilos.tabs}>
+            <button onClick={() => setFiltroTipo('Alabanza')} 
+                style={filtroTipo === 'Alabanza' ? estilos.tabActiva : estilos.tabInactiva}>ALABANZA</button>
+            <button onClick={() => setFiltroTipo('Adoración')} 
+                style={filtroTipo === 'Adoración' ? estilos.tabActiva : estilos.tabInactiva}>ADORACIÓN</button>
+        </div>
+
+        {canciones
+            .filter(c => (c.titulo + c.artista).toLowerCase().includes(busqueda.toLowerCase()))
+            .filter(c => (c.tipo || 'Alabanza') === filtroTipo) // Filtramos por tipo
+            .map(c => (
           <div key={c.id} style={estilos.itemRepo}>
             <div style={{flex: 1}}>
               <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
@@ -195,46 +208,11 @@ export default function App() {
       </div>
 
       <style>{`
-        /* AJUSTES PARA CALENDARIO EN CELULAR */
-        .mini-cal { 
-          width: 100% !important; 
-          border: none !important; 
-          font-family: sans-serif; 
-          background: white;
-          color: black !important;
-        }
-        .react-calendar__navigation button {
-          color: black !important;
-          min-width: 44px;
-          background: none;
-          font-size: 1rem;
-          font-weight: bold;
-        }
-        .react-calendar__month-view__weekdays {
-          text-align: center;
-          text-transform: uppercase;
-          font-weight: bold;
-          font-size: 0.7rem;
-          color: #555;
-        }
-        .react-calendar__tile {
-          padding: 12px 5px !important;
-          font-size: 0.85rem !important;
-          color: black !important;
-        }
-        .react-calendar__tile--now {
-          background: #e6f0ff !important;
-          border-radius: 5px;
-        }
-        .react-calendar__tile--active { 
-          background: #3b82f6 !important; 
-          border-radius: 5px; 
-          color: white !important; 
-          font-weight: bold;
-        }
-        .react-calendar__month-view__days__day--neighboringMonth { 
-          color: #ccc !important; 
-        }
+        .mini-cal { width: 100% !important; border: none !important; font-family: sans-serif; background: white; color: black !important; }
+        .react-calendar__navigation button { color: black !important; min-width: 44px; background: none; font-size: 1rem; font-weight: bold; }
+        .react-calendar__tile { padding: 12px 5px !important; font-size: 0.85rem !important; color: black !important; }
+        .react-calendar__tile--active { background: #3b82f6 !important; border-radius: 5px; color: white !important; font-weight: bold; }
+        .react-calendar__month-view__days__day--neighboringMonth { color: #ccc !important; }
       `}</style>
     </div>
   )
@@ -243,11 +221,11 @@ export default function App() {
 const estilos = {
   fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '15px', fontFamily: 'sans-serif' },
   logo: { textAlign: 'center', color: '#4da6ff', marginBottom: '15px', fontWeight: 'bold' },
-  cajaBlanca: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' },
+  cajaBlanca: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   inputDir: { width: '90%', maxWidth: '300px', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', color: '#000', fontSize: '1rem', textAlign: 'center', background: '#f0f7ff' },
   search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '15px', boxSizing: 'border-box' },
   seccionTitle: { color: '#4da6ff', fontSize: '0.8rem', letterSpacing: '1px', margin: 0 },
-  btnWhatsApp: { background: '#25D366', border: 'none', borderRadius: '50%', width: '42px', height: '42px', fontSize: '1.3rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' },
+  btnWhatsApp: { background: '#25D366', border: 'none', borderRadius: '50%', width: '42px', height: '42px', fontSize: '1.3rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
@@ -257,9 +235,12 @@ const estilos = {
   btnX: { background: 'none', border: 'none', color: '#ef4444', fontSize: '1.3rem' },
   contenido: { padding: '15px', background: '#050505' },
   letraPre: { whiteSpace: 'pre-wrap', fontSize: '0.9rem', color: '#ccc', fontFamily: 'monospace' },
-  btnG: { flex: 4, padding: '15px', background: '#10b981', border: 'none', borderRadius: '10px', fontWeight: 'bold', color: '#fff', fontSize: '0.9rem' },
-  btnBorrar: { flex: 1, padding: '15px', background: '#333', border: 'none', borderRadius: '10px', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  divisor: { textAlign: 'center', margin: '30px 0 15px', color: '#333', fontSize: '0.65rem', fontWeight: 'bold', letterSpacing: '2px' },
+  btnG: { flex: 4, padding: '15px', background: '#10b981', border: 'none', borderRadius: '10px', fontWeight: 'bold', color: '#fff' },
+  btnBorrar: { flex: 1, padding: '15px', background: '#333', border: 'none', borderRadius: '10px', color: '#fff' },
+  divisor: { textAlign: 'center', margin: '30px 0 10px', color: '#333', fontSize: '0.65rem', fontWeight: 'bold', letterSpacing: '2px' },
+  tabs: { display: 'flex', gap: '5px', marginBottom: '15px' },
+  tabActiva: { flex: 1, padding: '10px', background: '#4da6ff', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.7rem' },
+  tabInactiva: { flex: 1, padding: '10px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '8px', fontSize: '0.7rem' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '8px', border: '1px solid #222' },
-  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '38px', height: '38px', borderRadius: '50%', fontWeight: 'bold', fontSize: '1.2rem' }
+  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '38px', height: '38px', borderRadius: '50%', fontWeight: 'bold' }
 }
