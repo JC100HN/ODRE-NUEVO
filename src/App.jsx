@@ -4,12 +4,11 @@ import { Transposer } from 'chord-transposer'
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 
-// Librerías para Drag & Drop
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// --- COMPONENTE: CADA CANCIÓN EN EL PLAN ---
+// --- COMPONENTE: ITEM DE CANCIÓN ---
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const [misSemitonos, setMisSemitonos] = useState(0);
@@ -38,7 +37,10 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }
       <div style={estaAbierta ? estilos.acordeonHeaderActivo : estilos.acordeonHeader} onClick={() => setCancionAbierta(estaAbierta ? null : c.id)}>
         <div style={estilos.tituloAcordeon}>
           <span {...attributes} {...listeners} style={estilos.dragHandle}>☰</span>
-          <span style={{fontSize: '0.8rem'}}>{c.titulo} <b style={{color: '#4da6ff', fontSize: '0.7rem'}}>{transponerIndividual(c.tono || c.key, misSemitonos)}</b></span>
+          <div style={{display: 'flex', flexDirection: 'column'}}>
+            <span style={{fontSize: '0.8rem'}}>{c.titulo} <b style={{color: '#4da6ff', fontSize: '0.7rem'}}>{transponerIndividual(c.tono || c.key, misSemitonos)}</b></span>
+            <small style={{color: '#888', fontSize: '0.6rem'}}>{c.cantante || 'Artista'}</small>
+          </div>
         </div>
         <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
             <div style={estilos.miniTransporte} onClick={(e) => e.stopPropagation()}>
@@ -58,7 +60,6 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }
   );
 }
 
-// --- COMPONENTE PRINCIPAL ---
 export default function App() {
   const [fecha, setFecha] = useState(new Date());
   const [director, setDirector] = useState("");
@@ -114,7 +115,7 @@ export default function App() {
     const fechaISO = fecha.toISOString().split('T')[0];
     const { error } = await supabase.from('planes_culto').upsert({ fecha: fechaISO, director: director, canciones: setlist });
     if (error) alert("Error: " + error.message);
-    else alert("¡Plan guardado con éxito!");
+    else alert("¡Plan actualizado!");
   };
 
   return (
@@ -126,9 +127,7 @@ export default function App() {
           <div style={{marginTop: '12px', padding: '0 5px'}}>
             <label style={{color: '#555', fontSize: '0.7rem', fontWeight: 'bold', display: 'block', marginBottom: '4px'}}>DIRECTOR DEL CULTO:</label>
             <input 
-                type="text" 
-                placeholder="Escribe el nombre aquí..." 
-                value={director}
+                type="text" placeholder="Nombre..." value={director}
                 onChange={(e) => setDirector(e.target.value)}
                 style={estilos.inputDirector}
             />
@@ -136,12 +135,12 @@ export default function App() {
       </div>
 
       <header style={{paddingBottom: '10px'}}>
-        <input type="text" placeholder="🔍 Buscar en repertorio..." value={busqueda}
+        <input type="text" placeholder="🔍 Buscar canción o cantante..." value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)} style={estilos.buscador} />
       </header>
 
       <section style={{maxWidth: '500px', margin: '0 auto'}}>
-        <h3 style={estilos.subtitulo}>📅 ORDEN DEL CULTO ({setlist.length})</h3>
+        <h3 style={estilos.subtitulo}>📅 PLAN ({setlist.length})</h3>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {setlist.map((c) => (
@@ -152,14 +151,20 @@ export default function App() {
         </DndContext>
 
         {setlist.length > 0 && (
-          <button onClick={guardarEnBaseDeDatos} style={estilos.btnGuardar}>💾 ACTUALIZAR PLAN</button>
+          <button onClick={guardarEnBaseDeDatos} style={estilos.btnGuardar}>💾 GUARDAR TODO</button>
         )}
 
-        <div style={estilos.divisor}>BIBLIOTECA DE CANCIONES</div>
+        <div style={estilos.divisor}>REPERTORIO</div>
         <div style={estilos.grid}>
-          {canciones.filter(c => (c.titulo || "").toLowerCase().includes(busqueda.toLowerCase())).map((c) => (
+          {canciones.filter(c => 
+            (c.titulo || "").toLowerCase().includes(busqueda.toLowerCase()) || 
+            (c.cantante || "").toLowerCase().includes(busqueda.toLowerCase())
+          ).map((c) => (
             <div key={c.id} style={estilos.itemRepo}>
-              <span style={{fontSize: '0.8rem', textTransform: 'uppercase'}}>{c.titulo} <small style={{color: '#4da6ff'}}>({c.tono || c.key})</small></span>
+              <div style={{display: 'flex', flexDirection: 'column'}}>
+                <span style={{fontSize: '0.8rem', textTransform: 'uppercase'}}>{c.titulo} <small style={{color: '#4da6ff'}}>({c.tono || c.key})</small></span>
+                <small style={{color: '#666', fontSize: '0.65rem'}}>{c.cantante || 'Artista'}</small>
+              </div>
               <button onClick={() => agregarAlSetlist(c)} style={estilos.btnPlus}>+</button>
             </div>
           ))}
@@ -169,9 +174,7 @@ export default function App() {
       <style>{`
         .calendario-custom { width: 100% !important; border: none !important; border-radius: 8px; font-size: 0.85rem; background: white !important; color: black !important; }
         .react-calendar__tile { color: black !important; padding: 10px 5px !important; }
-        .react-calendar__tile--now { background: #e6f2ff !important; border-radius: 5px; }
-        .react-calendar__tile--active { background: #3b82f6 !important; color: white !important; border-radius: 5px; }
-        .react-calendar__navigation button { color: black !important; font-weight: bold; font-size: 1rem; }
+        .react-calendar__navigation button { color: black !important; font-weight: bold; }
       `}</style>
     </div>
   )
@@ -181,30 +184,21 @@ const estilos = {
   pantalla: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', fontFamily: 'sans-serif' },
   logo: { color: '#4da6ff', fontSize: '1.2rem', textAlign: 'center', margin: '10px 0', fontWeight: 'bold' },
   buscador: { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#111', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' },
-  seccionCalendario: { background: '#fff', padding: '12px', borderRadius: '12px', marginBottom: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' },
-  inputDirector: { 
-    width: '100%', 
-    padding: '12px', 
-    borderRadius: '8px', 
-    border: '2px solid #3b82f6', 
-    fontSize: '1rem', 
-    color: '#000', 
-    backgroundColor: '#f1f5f9',
-    boxSizing: 'border-box'
-  },
-  subtitulo: { color: '#888', fontSize: '0.65rem', marginBottom: '10px', letterSpacing: '1px', textAlign: 'center' },
+  seccionCalendario: { background: '#fff', padding: '12px', borderRadius: '12px', marginBottom: '15px' },
+  inputDirector: { width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #3b82f6', fontSize: '1rem', color: '#000', backgroundColor: '#f1f5f9', boxSizing: 'border-box' },
+  subtitulo: { color: '#888', fontSize: '0.65rem', marginBottom: '10px', textAlign: 'center' },
   acordeonHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#161616' },
   acordeonHeaderActivo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#1e3a8a' },
-  tituloAcordeon: { fontWeight: 'bold', display: 'flex', alignItems: 'center', fontSize: '0.8rem' },
-  dragHandle: { marginRight: '10px', color: '#666', cursor: 'grab', fontSize: '1.2rem' },
-  acordeonContent: { padding: '12px', background: '#050505', borderTop: '1px solid #222' },
+  tituloAcordeon: { fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' },
+  dragHandle: { color: '#666', cursor: 'grab', fontSize: '1.2rem', marginRight: '5px' },
+  acordeonContent: { padding: '12px', background: '#050505' },
   letra: { whiteSpace: 'pre-wrap', fontSize: '0.85rem', lineHeight: '1.4', fontFamily: 'monospace', color: '#ddd' },
-  btnQuitar: { background: 'none', border: 'none', color: '#ef4444', fontSize: '1.2rem', fontWeight: 'bold' },
+  btnQuitar: { background: 'none', border: 'none', color: '#ef4444', fontSize: '1.2rem' },
   miniTransporte: { display: 'flex', alignItems: 'center', gap: '4px', background: '#000', padding: '3px 8px', borderRadius: '12px', border: '1px solid #333' },
-  btnXSmall: { background: 'none', border: 'none', color: '#4da6ff', fontSize: '1rem', fontWeight: 'bold' },
-  btnGuardar: { width: '100%', padding: '14px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '10px', cursor: 'pointer' },
-  divisor: { textAlign: 'center', color: '#444', margin: '30px 0 15px 0', fontSize: '0.6rem', letterSpacing: '2px', fontWeight: 'bold' },
+  btnXSmall: { background: 'none', border: 'none', color: '#4da6ff', fontSize: '1rem' },
+  btnGuardar: { width: '100%', padding: '14px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '10px' },
+  divisor: { textAlign: 'center', color: '#444', margin: '30px 0 15px 0', fontSize: '0.6rem', letterSpacing: '2px' },
   grid: { display: 'flex', flexDirection: 'column', gap: '6px' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#111', borderRadius: '8px', border: '1px solid #222' },
-  btnPlus: { background: '#3b82f6', border: 'none', color: '#fff', width: '30px', height: '30px', borderRadius: '50%', fontSize: '1.2rem', fontWeight: 'bold' }
+  btnPlus: { background: '#3b82f6', border: 'none', color: '#fff', width: '30px', height: '30px', borderRadius: '50%', fontSize: '1.2rem' }
 }
