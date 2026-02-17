@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { Transposer } from 'chord-transposer'
+
+// Librerías para el reordenamiento (Drag & Drop)
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// --- COMPONENTE: ITEM INDIVIDUAL CON SU PROPIO TRANSPORTE ---
+// --- COMPONENTE: CADA CANCIÓN EN EL PLAN DEL CULTO ---
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   
-  // ESTADO INDIVIDUAL: Cada canción maneja sus propios semitonos
+  // Estado de transporte local para esta canción específica
   const [misSemitonos, setMisSemitonos] = useState(0);
-
   const estaAbierta = cancionAbierta === c.id;
 
   const transponerIndividual = (texto, cantidad) => {
@@ -48,7 +49,6 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }
         </div>
         
         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-            {/* BOTONES DE TRANSPORTE INDIVIDUAL */}
             <div style={estilos.miniTransporte} onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => setMisSemitonos(s => s - 1)} style={estilos.btnXSmall}>-</button>
                 <span style={{fontSize: '0.7rem', minWidth: '15px', textAlign: 'center'}}>{misSemitonos}</span>
@@ -67,12 +67,13 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist }
   );
 }
 
-// --- COMPONENTE PRINCIPAL (Sin el transporte global) ---
+// --- COMPONENTE PRINCIPAL ---
 export default function App() {
   const [canciones, setCanciones] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [cancionAbierta, setCancionAbierta] = useState(null)
   
+  // Guardamos la lista en el navegador para que aparezca en el celular
   const [setlist, setSetlist] = useState(() => {
     const guardado = localStorage.getItem('setlist_domingo')
     return guardado ? JSON.parse(guardado) : []
@@ -91,9 +92,10 @@ export default function App() {
     const traerCanciones = async () => {
       const { data } = await supabase.from('CANCIONES').select('*').order('titulo', { ascending: true })
       if (data) {
+        // Asignamos IDs únicos reales para que no se seleccionen todas juntas
         const cancionesConId = data.map((c, index) => ({
           ...c,
-          id: c.id || `temp-${index}-${c.titulo.replace(/\s+/g, '-')}`
+          id: c.id || `id-${index}-${c.titulo.substring(0,3)}`
         }))
         setCanciones(cancionesConId)
       }
@@ -176,7 +178,6 @@ export default function App() {
 }
 
 const estilos = {
-  // ... (los estilos de antes se mantienen casi igual, añadimos los nuevos abajo)
   pantalla: { backgroundColor: '#0a0a0a', color: '#fff', minHeight: '100vh', padding: '20px', fontFamily: 'sans-serif' },
   header: { marginBottom: '30px', borderBottom: '1px solid #222', paddingBottom: '15px' },
   logo: { color: '#4da6ff', margin: '0 0 15px 0' },
@@ -185,7 +186,7 @@ const estilos = {
   acordeonHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 15px', background: '#161616', cursor: 'pointer' },
   acordeonHeaderActivo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 15px', background: '#1a3a5a', cursor: 'pointer' },
   tituloAcordeon: { fontWeight: 'bold', display: 'flex', alignItems: 'center', fontSize: '0.9rem' },
-  dragHandle: { marginRight: '15px', color: '#444', cursor: 'grab' },
+  dragHandle: { marginRight: '15px', color: '#555', cursor: 'grab' },
   badgeTono: { color: '#4da6ff', marginLeft: '10px', background: '#000', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' },
   acordeonContent: { padding: '20px', background: '#050505', borderTop: '1px solid #222' },
   letra: { whiteSpace: 'pre-wrap', fontSize: '1.2rem', lineHeight: '1.6', fontFamily: 'monospace', color: '#ccc' },
