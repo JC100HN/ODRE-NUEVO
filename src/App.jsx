@@ -48,7 +48,25 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                 </div>
           </div>
         </div>
-        {!modoLectura && <button onClick={(e) => { e.stopPropagation(); quitarDelSetlist(c.id); }} style={estilos.btnX}>×</button>}
+        
+        <div style={{display: 'flex', gap: '5px', alignItems: 'center'}} onClick={(e) => e.stopPropagation()}>
+           {!modoLectura && (
+             <>
+                {/* SELECTOR DE CATEGORÍAS REINSTALADO */}
+                <select 
+                    value={c.categoria || ""} 
+                    onChange={(e) => cambiarCategoria(c.id, e.target.value)} 
+                    style={estilos.miniSelect}
+                >
+                    <option value="">Tipo...</option>
+                    {["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"].map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                </select>
+                <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnX}>×</button>
+             </>
+           )}
+        </div>
       </div>
 
       {estaAbierta && (
@@ -127,7 +145,7 @@ export default function App() {
   };
 
   const borrarPlan = async () => {
-    if (window.confirm("¿Borrar permanentemente el plan de este día?")) {
+    if (window.confirm("¿Borrar el plan completo?")) {
       const fechaISO = fecha.toISOString().split('T')[0];
       await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
       setSetlist([]); setDirector(""); setExistePlan(false);
@@ -137,11 +155,10 @@ export default function App() {
   const compartirWhatsApp = () => {
     const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     let mensaje = `*ORDEN DEL CULTO - ${dia.toUpperCase()}*\n`;
-    mensaje += `*Director:* ${director || 'No asignado'}\n\n`;
+    mensaje += `*Director:* ${director || '---'}\n\n`;
     setlist.forEach((c, i) => {
-      mensaje += `${i + 1}. ${c.categoria ? `[${c.categoria}] ` : ''}${c.titulo} - *${c.tono || c.key}*\n`;
+      mensaje += `${i + 1}. ${c.categoria ? `[${c.categoria}] ` : ''}${c.titulo} (${c.tono || c.key})\n`;
     });
-    mensaje += `\n_Generado por Odre Nuevo App_`;
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
   };
@@ -150,10 +167,9 @@ export default function App() {
     return (
       <div style={estilos.fondo}>
         <div style={estilos.navEnsayo}>
-            <button onClick={() => setPantalla('principal')} style={estilos.btnRegresar}>← Volver</button>
+            <button onClick={() => setPantalla('principal')} style={estilos.btnRegresar}>←</button>
             <div style={{textAlign: 'right'}}>
                 <div style={{fontSize: '0.6rem', color: '#4da6ff'}}>DIRECTOR</div>
-                {/* AQUÍ ESTÁ EL ARREGLO DEL COLOR PARA EL DIRECTOR EN MODO ENSAYO */}
                 <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold'}}>{director || '---'}</div>
             </div>
         </div>
@@ -174,9 +190,13 @@ export default function App() {
         
         <div style={estilos.cajaCalendario}>
             <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
-            {/* AQUÍ SE ESCRIBE EN NEGRO PORQUE EL FONDO ES BLANCO */}
-            <input type="text" placeholder="¿Quién dirige?" value={director} 
-                onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
+            <input 
+                type="text" 
+                placeholder="¿Quién dirige?" 
+                value={director} 
+                onChange={(e) => setDirector(e.target.value)} 
+                style={estilos.inputDir} 
+            />
         </div>
 
         <button onClick={() => setPantalla('ensayo')} style={estilos.btnEnsayo}>📖 EMPEZAR CULTO</button>
@@ -217,7 +237,7 @@ export default function App() {
         )}
 
         <div style={estilos.divisor}>BIBLIOTECA</div>
-        <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+        <input type="text" placeholder="🔍 Buscar canción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
         
         <div style={estilos.tabs}>
             {['Alabanza', 'Adoración'].map(t => (
@@ -249,22 +269,23 @@ const estilos = {
   contenedor: { maxWidth: '450px', width: '100%' },
   logo: { textAlign: 'center', color: '#4da6ff', margin: '10px 0' },
   cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px' },
-  inputDir: { width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', color: '#000', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxSizing: 'border-box' },
+  // ARREGLO DEL INPUT: Fondo gris claro para que se vea la letra negra al escribir
+  inputDir: { width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#e0e0e0', color: '#000', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxSizing: 'border-box' },
   btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px' },
   navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #333', width: '100%' },
   btnRegresar: { background: '#333', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px' },
   fechaEnsayo: { textAlign: 'center', fontSize: '0.8rem', color: '#888', margin: '20px 0' },
   headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px' },
   btnMiniG: { background: '#10b981', color: 'white', padding: '8px 12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
-  btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer' },
+  btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 10px', borderRadius: '8px' },
   btnBorrar: { background: '#441111', color: '#ff4d4d', border: 'none', padding: '8px 10px', borderRadius: '8px' },
   areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
   manubrio: { fontSize: '1.4rem', color: '#555' },
-  tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold' },
-  miniSelect: { background: '#222', color: '#fff', border: 'none', fontSize: '0.75rem', padding: '6px', borderRadius: '6px' },
+  tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold', textTransform: 'uppercase' },
+  miniSelect: { background: '#333', color: '#fff', border: '1px solid #4da6ff', fontSize: '0.75rem', padding: '6px', borderRadius: '6px' },
   btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
   contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
   controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
