@@ -25,15 +25,16 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 1000 : 1,
-    opacity: isDragging ? 0.5 : 1,
-    scale: isDragging ? '1.02' : '1',
+    opacity: isDragging ? 0.6 : 1,
+    scale: isDragging ? '1.05' : '1',
+    boxShadow: isDragging ? '0px 10px 20px rgba(0,0,0,0.5)' : 'none',
     marginBottom: '8px',
     borderRadius: '8px',
     border: isDragging ? '2px solid #4da6ff' : '1px solid #333',
-    backgroundColor: '#111',
+    backgroundColor: isDragging ? '#222' : '#111',
     width: '100%',
     boxSizing: 'border-box',
-    touchAction: 'none' // Bloquea el scroll nativo solo en este elemento para permitir el arrastre
+    touchAction: 'none' // Necesario para que el sensor de 3 seg funcione correctamente
   };
 
   return (
@@ -41,7 +42,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
       <div 
         style={estaAbierta ? estilos.headerActivo : estilos.headerNormal} 
         onClick={(e) => {
-          // Evitamos que el click para abrir se confunda con el arrastre
+          // Si estamos arrastrando, no disparamos el click de abrir/cerrar
           if (!isDragging) setCancionAbierta(estaAbierta ? null : c.id);
         }}
       >
@@ -106,11 +107,11 @@ export default function App() {
   const [planContraido, setPlanContraido] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { 
       activationConstraint: { 
-        delay: 500, // MEDIO SEGUNDO PRESIONADO PARA MOVER (Ideal para celular)
-        tolerance: 8 
+        delay: 3000, // 3 SEGUNDOS PARA ACTIVAR MOVIMIENTO
+        tolerance: 10 
       } 
     })
   );
