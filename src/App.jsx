@@ -8,7 +8,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// --- COMPONENTE: CADA CANCIÓN ---
+// --- COMPONENTE: ITEM DE CANCIÓN ---
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, cambiarCategoria, modoLectura }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const [misSemitonos, setMisSemitonos] = useState(0);
@@ -48,18 +48,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                 </div>
           </div>
         </div>
-        
-        <div style={{display: 'flex', gap: '5px', alignItems: 'center'}} onClick={(e) => e.stopPropagation()}>
-           {!modoLectura && (
-             <>
-                <select value={c.categoria || ""} onChange={(e) => cambiarCategoria(c.id, e.target.value)} style={estilos.miniSelect}>
-                    <option value="">Tipo...</option>
-                    {["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"].map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-                <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnX}>×</button>
-             </>
-           )}
-        </div>
+        {!modoLectura && <button onClick={(e) => { e.stopPropagation(); quitarDelSetlist(c.id); }} style={estilos.btnX}>×</button>}
       </div>
 
       {estaAbierta && (
@@ -133,22 +122,28 @@ export default function App() {
       director: director, 
       canciones: setlist 
     }, { onConflict: 'fecha' });
-
     if (error) alert("Error: " + error.message);
     else { alert("✅ Sincronizado"); setExistePlan(true); }
   };
 
   const borrarPlan = async () => {
-    if (window.confirm("¿Estás seguro de que quieres ELIMINAR todo el plan de este día?")) {
+    if (window.confirm("¿Borrar permanentemente el plan de este día?")) {
       const fechaISO = fecha.toISOString().split('T')[0];
-      const { error } = await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
-      if (!error) {
-        setSetlist([]);
-        setDirector("");
-        setExistePlan(false);
-        alert("🗑️ Plan eliminado");
-      }
+      await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
+      setSetlist([]); setDirector(""); setExistePlan(false);
     }
+  };
+
+  const compartirWhatsApp = () => {
+    const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    let mensaje = `*ORDEN DEL CULTO - ${dia.toUpperCase()}*\n`;
+    mensaje += `*Director:* ${director || 'No asignado'}\n\n`;
+    setlist.forEach((c, i) => {
+      mensaje += `${i + 1}. ${c.categoria ? `[${c.categoria}] ` : ''}${c.titulo} - *${c.tono || c.key}*\n`;
+    });
+    mensaje += `\n_Generado por Odre Nuevo App_`;
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
   };
 
   if (pantalla === 'ensayo') {
@@ -158,7 +153,8 @@ export default function App() {
             <button onClick={() => setPantalla('principal')} style={estilos.btnRegresar}>← Volver</button>
             <div style={{textAlign: 'right'}}>
                 <div style={{fontSize: '0.6rem', color: '#4da6ff'}}>DIRECTOR</div>
-                <div style={estilos.directorEnEnsayo}>{director || '---'}</div>
+                {/* AQUÍ ESTÁ EL ARREGLO DEL COLOR PARA EL DIRECTOR EN MODO ENSAYO */}
+                <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold'}}>{director || '---'}</div>
             </div>
         </div>
         <div style={estilos.contenedor}>
@@ -178,7 +174,8 @@ export default function App() {
         
         <div style={estilos.cajaCalendario}>
             <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
-            <input type="text" placeholder="¿Quién dirige hoy?" value={director} 
+            {/* AQUÍ SE ESCRIBE EN NEGRO PORQUE EL FONDO ES BLANCO */}
+            <input type="text" placeholder="¿Quién dirige?" value={director} 
                 onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
         </div>
 
@@ -186,9 +183,10 @@ export default function App() {
 
         <div style={estilos.headerPlan}>
             <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer', fontSize:'0.85rem'}}>
-                PLAN DE CULTO {planContraido ? '[+]' : '[-]'}
+                PLAN {planContraido ? '[+]' : '[-]'}
             </h4>
             <div style={{display:'flex', gap:'5px'}}>
+               {setlist.length > 0 && <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲</button>}
                {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
                <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
             </div>
@@ -207,21 +205,19 @@ export default function App() {
                     }
                 }}>
                   <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                    {setlist.length === 0 ? <p style={{textAlign:'center', color:'#444', padding:'20px'}}>Agrega canciones...</p> : 
-                      setlist.map(c => (
+                    {setlist.map(c => (
                         <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
                             cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
                             quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} 
                         />
-                      ))
-                    }
+                    ))}
                   </SortableContext>
                 </DndContext>
             </div>
         )}
 
         <div style={estilos.divisor}>BIBLIOTECA</div>
-        <input type="text" placeholder="🔍 Buscar canción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+        <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
         
         <div style={estilos.tabs}>
             {['Alabanza', 'Adoración'].map(t => (
@@ -240,47 +236,46 @@ export default function App() {
         ))}
       </div>
       <style>{`
-        .custom-calendar { width: 100% !important; border: none !important; color: black !important; border-radius: 10px; padding: 5px; }
+        .custom-calendar { width: 100% !important; border: none !important; color: black !important; border-radius: 10px; }
         .react-calendar__tile { color: black !important; padding: 12px 5px !important; }
         .react-calendar__navigation button { color: black !important; font-weight: bold; }
-        .react-calendar__month-view__days__day--neighboringMonth { color: #ccc !important; }
       `}</style>
     </div>
   )
 }
 
 const estilos = {
-  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  contenedor: { maxWidth: '450px', width: '100%', margin: '0 auto' },
-  logo: { textAlign: 'center', color: '#4da6ff', margin: '10px 0 20px' },
-  cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px', width: '100%', boxSizing: 'border-box' },
+  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  contenedor: { maxWidth: '450px', width: '100%' },
+  logo: { textAlign: 'center', color: '#4da6ff', margin: '10px 0' },
+  cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px' },
   inputDir: { width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', color: '#000', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxSizing: 'border-box' },
-  btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px', cursor: 'pointer', fontSize: '1rem' },
-  navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #333', width: '100%', maxWidth: '450px', margin: '0 auto' },
+  btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px' },
+  navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #333', width: '100%' },
   btnRegresar: { background: '#333', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px' },
-  directorEnEnsayo: { fontSize: '1.1rem', color: '#ffffff', fontWeight: 'bold', textShadow: '0 0 5px #4da6ff' },
-  fechaEnsayo: { textAlign: 'center', fontSize: '0.9rem', color: '#888', margin: '20px 0' },
+  fechaEnsayo: { textAlign: 'center', fontSize: '0.8rem', color: '#888', margin: '20px 0' },
   headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px' },
-  btnMiniG: { background: '#10b981', color: 'white', padding: '10px 15px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
-  btnBorrar: { background: '#441111', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem' },
-  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px', width: '100%', boxSizing: 'border-box' },
+  btnMiniG: { background: '#10b981', color: 'white', padding: '8px 12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
+  btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer' },
+  btnBorrar: { background: '#441111', color: '#ff4d4d', border: 'none', padding: '8px 10px', borderRadius: '8px' },
+  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
   manubrio: { fontSize: '1.4rem', color: '#555' },
   tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold' },
   miniSelect: { background: '#222', color: '#fff', border: 'none', fontSize: '0.75rem', padding: '6px', borderRadius: '6px' },
-  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.5rem' },
+  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
   contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
   controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
   grupoControl: { display: 'flex', alignItems: 'center', gap: '8px', background: '#111', padding: '6px 10px', borderRadius: '8px' },
   btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '6px 12px', borderRadius: '6px', fontWeight: 'bold' },
   letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.6' },
-  divisor: { margin: '25px 0 15px', color: '#4da6ff', fontWeight: 'bold', textAlign: 'center', fontSize: '0.8rem', width: '100%' },
-  search: { width: '100%', padding: '15px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '12px', marginBottom: '15px', boxSizing: 'border-box' },
-  tabs: { display: 'flex', gap: '8px', marginBottom: '15px', width: '100%' },
-  tabActiva: { flex: 1, padding: '12px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '10px' },
-  tabInactiva: { flex: 1, padding: '12px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '10px' },
+  divisor: { margin: '20px 0 10px', color: '#4da6ff', textAlign: 'center', fontSize: '0.8rem' },
+  search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '10px', boxSizing: 'border-box' },
+  tabs: { display: 'flex', gap: '8px', marginBottom: '15px' },
+  tabActiva: { flex: 1, padding: '10px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '10px' },
+  tabInactiva: { flex: 1, padding: '10px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '10px' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '8px' },
   btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontSize: '1.2rem', fontWeight: 'bold' }
 }
