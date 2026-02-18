@@ -8,7 +8,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// --- COMPONENTE: ITEM DE CANCIÓN (Sortable) ---
+// --- COMPONENTE: ITEM DE CANCIÓN ---
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, cambiarCategoria, modoLectura }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const [misSemitonos, setMisSemitonos] = useState(0);
@@ -24,27 +24,29 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 100 : 1,
-    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 1000 : 1,
+    opacity: isDragging ? 0.5 : 1,
+    scale: isDragging ? '1.02' : '1',
     marginBottom: '8px',
     borderRadius: '8px',
-    border: '1px solid #333',
+    border: isDragging ? '2px solid #4da6ff' : '1px solid #333',
     backgroundColor: '#111',
     width: '100%',
     boxSizing: 'border-box',
-    touchAction: 'none' 
+    touchAction: 'none' // Bloquea el scroll nativo solo en este elemento para permitir el arrastre
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <div style={estaAbierta ? estilos.headerActivo : estilos.headerNormal} onClick={() => setCancionAbierta(estaAbierta ? null : c.id)}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <div 
+        style={estaAbierta ? estilos.headerActivo : estilos.headerNormal} 
+        onClick={(e) => {
+          // Evitamos que el click para abrir se confunda con el arrastre
+          if (!isDragging) setCancionAbierta(estaAbierta ? null : c.id);
+        }}
+      >
         <div style={estilos.infoCuerpo}>
-          {/* El manubrio solo aparece si NO está abierta la letra para evitar conflictos en celular */}
-          {!modoLectura && !estaAbierta && (
-            <span {...attributes} {...listeners} style={estilos.manubrio} onClick={(e) => e.stopPropagation()}>
-              ☰
-            </span>
-          )}
+          {!modoLectura && <span style={estilos.manubrio}>☰</span>}
           <div style={{flex: 1}}>
                 <div style={{fontSize: '0.9rem', color: '#fff', fontWeight: 'bold'}}>
                     {c.categoria && <span style={estilos.tag}>{c.categoria}</span>} {c.titulo} 
@@ -70,7 +72,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
 
       {estaAbierta && (
         <div style={estilos.contenido}>
-          <div style={estilos.controlesLetra}>
+          <div style={estilos.controlesLetra} onClick={(e) => e.stopPropagation()}>
             <div style={estilos.grupoControl}>
                 <button onClick={() => setMisSemitonos(s => s - 1)} style={estilos.btnT}>-</button>
                 <span style={{color: '#fff', fontSize:'0.8rem', minWidth:'20px', textAlign:'center'}}>{misSemitonos}</span>
@@ -90,7 +92,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
   );
 }
 
-// --- APP PRINCIPAL ---
+// --- APP ---
 export default function App() {
   const [pantalla, setPantalla] = useState('principal');
   const [fecha, setFecha] = useState(new Date());
@@ -104,9 +106,13 @@ export default function App() {
   const [planContraido, setPlanContraido] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { 
+      activationConstraint: { 
+        delay: 500, // MEDIO SEGUNDO PRESIONADO PARA MOVER (Ideal para celular)
+        tolerance: 8 
+      } 
+    })
   );
 
   useEffect(() => {
@@ -144,7 +150,7 @@ export default function App() {
   };
 
   const borrarPlan = async () => {
-    if (window.confirm("¿Borrar el plan de este día?")) {
+    if (window.confirm("¿Borrar plan?")) {
       const fechaISO = fecha.toISOString().split('T')[0];
       await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
       setSetlist([]); setDirector(""); setExistePlan(false);
@@ -155,35 +161,30 @@ export default function App() {
     const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
     let mensaje = `🎸 *ORDEN DE CULTO - ODRE NUEVO*\n`;
     mensaje += `📅 *${dia}*\n`;
-    mensaje += `👤 *Dirige:* ${director || 'Sin asignar'}\n\n`;
-
-    const categorias = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
-    categorias.forEach(cat => {
-      const cancionesCat = setlist.filter(c => c.categoria === cat);
-      if (cancionesCat.length > 0) {
+    mensaje += `👤 *Dirige:* ${director || '---'}\n\n`;
+    const cats = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
+    cats.forEach(cat => {
+      const items = setlist.filter(c => c.categoria === cat);
+      if (items.length > 0) {
         mensaje += `*${cat.toUpperCase()}*:\n`;
-        cancionesCat.forEach(c => {
-          mensaje += `• ${c.titulo} (${c.tono || c.key})\n`;
-        });
+        items.forEach(c => mensaje += `• ${c.titulo} (${c.tono || c.key})\n`);
         mensaje += `\n`;
       }
     });
-
-    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
-    window.open(url, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
   if (pantalla === 'ensayo') {
     return (
       <div style={estilos.fondo}>
         <div style={estilos.navEnsayo}>
-            <button onClick={() => setPantalla('principal')} style={estilos.btnRegresar}>← Volver</button>
+            <button onClick={() => setPantalla('principal')} style={estilos.btnRegresar}>←</button>
             <div style={{textAlign: 'right'}}>
                 <div style={{fontSize: '0.6rem', color: '#4da6ff'}}>DIRECTOR</div>
                 <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold'}}>{director || '---'}</div>
             </div>
         </div>
-        <div style={estilos.contenedor}>
+        <div style={estilos.contenedorEnsayo}>
             <h3 style={estilos.fechaEnsayo}>{fecha.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' }).toUpperCase()}</h3>
             {setlist.map(c => (
                 <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />
@@ -200,21 +201,14 @@ export default function App() {
         
         <div style={estilos.cajaCalendario}>
             <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
-            <input 
-                type="text" 
-                placeholder="Escribe quién dirige..." 
-                value={director} 
-                onChange={(e) => setDirector(e.target.value)} 
-                style={estilos.inputDir} 
-            />
+            <input type="text" placeholder="¿Quién dirige?" value={director} 
+                onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
         </div>
 
         <button onClick={() => setPantalla('ensayo')} style={estilos.btnEnsayo}>📖 EMPEZAR CULTO</button>
 
         <div style={estilos.headerPlan}>
-            <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer', fontSize:'0.85rem'}}>
-                PLAN {planContraido ? '[+]' : '[-]'}
-            </h4>
+            <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
             <div style={{display:'flex', gap:'5px'}}>
                {setlist.length > 0 && <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲 Enviar</button>}
                {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
@@ -235,21 +229,19 @@ export default function App() {
                     }
                 }}>
                   <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                    {setlist.length === 0 ? <p style={{textAlign:'center', color:'#555', fontSize:'0.8rem'}}>No hay canciones en el plan</p> : 
-                      setlist.map(c => (
+                    {setlist.map(c => (
                         <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
                             cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
                             quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} 
                         />
-                      ))
-                    }
+                    ))}
                   </SortableContext>
                 </DndContext>
             </div>
         )}
 
         <div style={estilos.divisor}>BIBLIOTECA</div>
-        <input type="text" placeholder="🔍 Buscar canción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+        <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
         
         <div style={estilos.tabs}>
             {['Alabanza', 'Adoración'].map(t => (
@@ -257,7 +249,7 @@ export default function App() {
             ))}
         </div>
 
-        {canciones.filter(c => (c.titulo + c.artista).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
+        {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
           <div key={c.id} style={estilos.itemRepo}>
             <div style={{flex: 1}}>
               <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
@@ -279,22 +271,23 @@ export default function App() {
 const estilos = {
   fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   contenedor: { maxWidth: '450px', width: '100%' },
+  contenedorEnsayo: { maxWidth: '600px', width: '100%', paddingBottom: '100px' },
   logo: { textAlign: 'center', color: '#4da6ff', margin: '10px 0' },
   cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px' },
   inputDir: { width: '100%', padding: '14px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#f0f0f0', color: '#000', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxSizing: 'border-box' },
-  btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px', fontSize: '1rem' },
-  navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #333', width: '100%' },
+  btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px' },
+  navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #333', width: '100%', position: 'sticky', top: 0, backgroundColor: '#000', zIndex: 100 },
   btnRegresar: { background: '#333', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px' },
   fechaEnsayo: { textAlign: 'center', fontSize: '0.8rem', color: '#888', margin: '20px 0' },
   headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px' },
   btnMiniG: { background: '#10b981', color: 'white', padding: '8px 12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
   btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.75rem' },
   btnBorrar: { background: '#441111', color: '#ff4d4d', border: 'none', padding: '8px 10px', borderRadius: '8px' },
-  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px' },
+  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px', width: '100%', boxSizing: 'border-box' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
-  manubrio: { fontSize: '1.4rem', color: '#555', padding: '0 10px', cursor: 'grab' },
+  manubrio: { fontSize: '1.2rem', color: '#555' },
   tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold', textTransform: 'uppercase' },
   miniSelect: { background: '#333', color: '#fff', border: '1px solid #4da6ff', fontSize: '0.7rem', padding: '5px', borderRadius: '6px' },
   btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
