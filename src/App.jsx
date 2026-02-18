@@ -112,7 +112,7 @@ export default function App() {
     useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
     useSensor(TouchSensor, { 
       activationConstraint: { 
-        delay: 2000, // 2 SEGUNDOS PARA ACTIVAR MOVIMIENTO
+        delay: 2000, 
         tolerance: 15 
       } 
     })
@@ -164,13 +164,20 @@ export default function App() {
   };
 
   const borrarPlan = async () => {
-    if (window.confirm("¿Estás seguro de borrar el plan de este día?")) {
-      const fechaISO = fecha.toISOString().split('T')[0];
-      const { error } = await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
-      if (!error) {
-        setSetlist([]); setDirector(""); setExistePlan(false);
-        alert("🗑️ Plan borrado");
+    // CAMBIA "1234" POR TU CLAVE PRIVADA
+    const password = window.prompt("Introduce la clave de administrador para borrar:");
+    
+    if (password === "1234") { 
+      if (window.confirm("¿Estás seguro de borrar el plan de este día?")) {
+        const fechaISO = fecha.toISOString().split('T')[0];
+        const { error } = await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
+        if (!error) {
+          setSetlist([]); setDirector(""); setExistePlan(false);
+          alert("🗑️ Plan borrado");
+        }
       }
+    } else if (password !== null) {
+      alert("❌ Clave incorrecta. No tienes permiso.");
     }
   };
 
