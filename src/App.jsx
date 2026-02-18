@@ -4,8 +4,8 @@ import { Transposer } from 'chord-transposer'
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { DndContext, closestCenter, TouchSensor, MouseSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
 // --- COMPONENTE: ITEM DE CANCIÓN ---
@@ -26,23 +26,25 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
     transition,
     zIndex: isDragging ? 1000 : 1,
     opacity: isDragging ? 0.6 : 1,
-    scale: isDragging ? '1.05' : '1',
-    boxShadow: isDragging ? '0px 10px 20px rgba(0,0,0,0.5)' : 'none',
+    scale: isDragging ? '1.02' : '1',
     marginBottom: '8px',
     borderRadius: '8px',
     border: isDragging ? '2px solid #4da6ff' : '1px solid #333',
-    backgroundColor: isDragging ? '#222' : '#111',
+    backgroundColor: '#111',
     width: '100%',
     boxSizing: 'border-box',
-    touchAction: 'none' // Necesario para que el sensor de 3 seg funcione correctamente
+    // touchAction: 'pan-y' permite el scroll normal del dedo, se bloquea automáticamente al arrastrar
+    touchAction: isDragging ? 'none' : 'pan-y'
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style}>
       <div 
         style={estaAbierta ? estilos.headerActivo : estilos.headerNormal} 
+        {...attributes} 
+        {...listeners}
         onClick={(e) => {
-          // Si estamos arrastrando, no disparamos el click de abrir/cerrar
+          // Solo abre/cierra si no se inició un arrastre
           if (!isDragging) setCancionAbierta(estaAbierta ? null : c.id);
         }}
       >
@@ -58,17 +60,15 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
           </div>
         </div>
         
-        <div style={{display: 'flex', gap: '5px', alignItems: 'center'}} onClick={(e) => e.stopPropagation()}>
-           {!modoLectura && (
-             <>
+        {!modoLectura && (
+            <div style={{display: 'flex', gap: '5px'}} onClick={(e) => e.stopPropagation()}>
                 <select value={c.categoria || ""} onChange={(e) => cambiarCategoria(c.id, e.target.value)} style={estilos.miniSelect}>
                     <option value="">Tipo...</option>
                     {["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"].map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
                 <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnX}>×</button>
-             </>
-           )}
-        </div>
+            </div>
+        )}
       </div>
 
       {estaAbierta && (
@@ -106,15 +106,29 @@ export default function App() {
   const [filtroTipo, setFiltroTipo] = useState('Alabanza');
   const [planContraido, setPlanContraido] = useState(false);
 
+  // CONFIGURACIÓN DE SENSORES MEJORADA
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { 
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 10 },
+    }),
+    useSensor(TouchSensor, {
       activationConstraint: { 
-        delay: 3000, // 3 SEGUNDOS PARA ACTIVAR MOVIMIENTO
-        tolerance: 10 
-      } 
+        delay: 3000, // 3 SEGUNDOS OBLIGATORIOS EN CELULAR
+        tolerance: 15 // Permite un margen de error si el dedo se mueve un poco
+      },
     })
   );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setSetlist((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   useEffect(() => {
     const cargarBiblioteca = async () => {
@@ -150,19 +164,9 @@ export default function App() {
     else { alert("✅ Sincronizado"); setExistePlan(true); }
   };
 
-  const borrarPlan = async () => {
-    if (window.confirm("¿Borrar plan?")) {
-      const fechaISO = fecha.toISOString().split('T')[0];
-      await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
-      setSetlist([]); setDirector(""); setExistePlan(false);
-    }
-  };
-
   const compartirWhatsApp = () => {
     const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
-    let mensaje = `🎸 *ORDEN DE CULTO - ODRE NUEVO*\n`;
-    mensaje += `📅 *${dia}*\n`;
-    mensaje += `👤 *Dirige:* ${director || '---'}\n\n`;
+    let mensaje = `🎸 *ORDEN DE CULTO - ODRE NUEVO*\n📅 *${dia}*\n👤 *Dirige:* ${director || '---'}\n\n`;
     const cats = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
     cats.forEach(cat => {
       const items = setlist.filter(c => c.categoria === cat);
@@ -185,11 +189,14 @@ export default function App() {
                 <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold'}}>{director || '---'}</div>
             </div>
         </div>
-        <div style={estilos.contenedorEnsayo}>
-            <h3 style={estilos.fechaEnsayo}>{fecha.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' }).toUpperCase()}</h3>
-            {setlist.map(c => (
-                <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />
-            ))}
+        <div style={estilos.contenedor}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                {setlist.map(c => (
+                    <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />
+                ))}
+              </SortableContext>
+            </DndContext>
         </div>
       </div>
     );
@@ -199,36 +206,22 @@ export default function App() {
     <div style={estilos.fondo}>
       <div style={estilos.contenedor}>
         <h2 style={estilos.logo}>🎸 Odre Nuevo</h2>
-        
         <div style={estilos.cajaCalendario}>
             <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
             <input type="text" placeholder="¿Quién dirige?" value={director} 
                 onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
         </div>
-
         <button onClick={() => setPantalla('ensayo')} style={estilos.btnEnsayo}>📖 EMPEZAR CULTO</button>
-
         <div style={estilos.headerPlan}>
             <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
             <div style={{display:'flex', gap:'5px'}}>
-               {setlist.length > 0 && <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲 Enviar</button>}
-               {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
+               <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲 Enviar</button>
                <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
             </div>
         </div>
-        
         {!planContraido && (
             <div style={estilos.areaPlan}>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => {
-                    const { active, over } = e;
-                    if (active && over && active.id !== over.id) {
-                        setSetlist((items) => {
-                            const oldIndex = items.findIndex((i) => i.id === active.id);
-                            const newIndex = items.findIndex((i) => i.id === over.id);
-                            return arrayMove(items, oldIndex, newIndex);
-                        });
-                    }
-                }}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
                     {setlist.map(c => (
                         <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
@@ -240,16 +233,13 @@ export default function App() {
                 </DndContext>
             </div>
         )}
-
         <div style={estilos.divisor}>BIBLIOTECA</div>
         <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
-        
         <div style={estilos.tabs}>
             {['Alabanza', 'Adoración'].map(t => (
                 <button key={t} onClick={() => setFiltroTipo(t)} style={filtroTipo === t ? estilos.tabActiva : estilos.tabInactiva}>{t}</button>
             ))}
         </div>
-
         {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
           <div key={c.id} style={estilos.itemRepo}>
             <div style={{flex: 1}}>
@@ -272,30 +262,27 @@ export default function App() {
 const estilos = {
   fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   contenedor: { maxWidth: '450px', width: '100%' },
-  contenedorEnsayo: { maxWidth: '600px', width: '100%', paddingBottom: '100px' },
   logo: { textAlign: 'center', color: '#4da6ff', margin: '10px 0' },
   cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px' },
   inputDir: { width: '100%', padding: '14px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#f0f0f0', color: '#000', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxSizing: 'border-box' },
   btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px' },
   navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #333', width: '100%', position: 'sticky', top: 0, backgroundColor: '#000', zIndex: 100 },
   btnRegresar: { background: '#333', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px' },
-  fechaEnsayo: { textAlign: 'center', fontSize: '0.8rem', color: '#888', margin: '20px 0' },
   headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px' },
   btnMiniG: { background: '#10b981', color: 'white', padding: '8px 12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
   btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.75rem' },
-  btnBorrar: { background: '#441111', color: '#ff4d4d', border: 'none', padding: '8px 10px', borderRadius: '8px' },
-  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px', width: '100%', boxSizing: 'border-box' },
-  headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
-  headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0' },
+  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px' },
+  headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px', cursor: 'pointer' },
+  headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0', cursor: 'pointer' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
   manubrio: { fontSize: '1.2rem', color: '#555' },
-  tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold', textTransform: 'uppercase' },
+  tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold' },
   miniSelect: { background: '#333', color: '#fff', border: '1px solid #4da6ff', fontSize: '0.7rem', padding: '5px', borderRadius: '6px' },
   btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
   contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
   controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
   grupoControl: { display: 'flex', alignItems: 'center', gap: '8px', background: '#111', padding: '6px 10px', borderRadius: '8px' },
-  btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '6px 12px', borderRadius: '6px', fontWeight: 'bold' },
+  btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '6px 12px', borderRadius: '6px' },
   letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.6' },
   divisor: { margin: '20px 0 10px', color: '#4da6ff', textAlign: 'center', fontSize: '0.8rem' },
   search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '10px', boxSizing: 'border-box' },
@@ -303,5 +290,5 @@ const estilos = {
   tabActiva: { flex: 1, padding: '10px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '10px' },
   tabInactiva: { flex: 1, padding: '10px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '10px' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '8px' },
-  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontSize: '1.2rem', fontWeight: 'bold' }
+  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontSize: '1.2rem' }
 }
