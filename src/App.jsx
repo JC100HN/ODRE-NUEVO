@@ -31,14 +31,24 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
     border: '1px solid #333',
     backgroundColor: '#111',
     width: '100%',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    touchAction: 'none' // IMPORTANTE: Evita que el celular haga scroll mientras arrastras
   };
 
   return (
     <div ref={setNodeRef} style={style}>
       <div style={estaAbierta ? estilos.headerActivo : estilos.headerNormal} onClick={() => setCancionAbierta(estaAbierta ? null : c.id)}>
         <div style={estilos.infoCuerpo}>
-          {!modoLectura && <span {...attributes} {...listeners} style={estilos.manubrio} onClick={(e) => e.stopPropagation()}>☰</span>}
+          {!modoLectura && (
+            <span 
+              {...attributes} 
+              {...listeners} 
+              style={estilos.manubrio} 
+              onClick={(e) => e.stopPropagation()}
+            >
+              ☰
+            </span>
+          )}
           <div style={{flex: 1}}>
                 <div style={{fontSize: '0.9rem', color: '#fff', fontWeight: 'bold'}}>
                     {c.categoria && <span style={estilos.tag}>{c.categoria}</span>} {c.titulo} 
@@ -48,18 +58,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                 </div>
           </div>
         </div>
-        
-        <div style={{display: 'flex', gap: '5px', alignItems: 'center'}} onClick={(e) => e.stopPropagation()}>
-           {!modoLectura && (
-             <>
-                <select value={c.categoria || ""} onChange={(e) => cambiarCategoria(c.id, e.target.value)} style={estilos.miniSelect}>
-                    <option value="">Categoría...</option>
-                    {["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"].map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-                <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnX}>×</button>
-             </>
-           )}
-        </div>
+        {!modoLectura && <button onClick={(e) => { e.stopPropagation(); quitarDelSetlist(c.id); }} style={estilos.btnX}>×</button>}
       </div>
 
       {estaAbierta && (
@@ -97,9 +96,15 @@ export default function App() {
   const [filtroTipo, setFiltroTipo] = useState('Alabanza');
   const [planContraido, setPlanContraido] = useState(false);
 
+  // AJUSTE DE SENSORES PARA CELULAR
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { 
+      activationConstraint: { 
+        delay: 250, // Espera 250ms presionando para empezar a mover
+        tolerance: 5 
+      } 
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -289,7 +294,7 @@ const estilos = {
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
-  manubrio: { fontSize: '1.4rem', color: '#555' },
+  manubrio: { fontSize: '1.4rem', color: '#555', padding: '0 10px', cursor: 'grab' },
   tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold', textTransform: 'uppercase' },
   miniSelect: { background: '#333', color: '#fff', border: '1px solid #4da6ff', fontSize: '0.7rem', padding: '5px', borderRadius: '6px' },
   btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
