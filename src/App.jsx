@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, cambiarCategoria, modoLectura }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const [misSemitonos, setMisSemitonos] = useState(0);
-  const [tamanoLetra, setTamanoLetra] = useState(16); // Tamaño base en px
+  const [tamanoLetra, setTamanoLetra] = useState(16);
   const estaAbierta = cancionAbierta === c.id;
 
   const transponerIndividual = (texto, cantidad) => {
@@ -59,7 +59,6 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                 <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnX}>×</button>
              </>
            )}
-           {modoLectura && <span style={{color: '#444'}}>{estaAbierta ? '▲' : '▼'}</span>}
         </div>
       </div>
 
@@ -67,13 +66,11 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
         <div style={estilos.contenido}>
           <div style={estilos.controlesLetra}>
             <div style={estilos.grupoControl}>
-                <small style={{color: '#666'}}>Tono:</small>
                 <button onClick={() => setMisSemitonos(s => s - 1)} style={estilos.btnT}>-</button>
-                <span style={{color: '#fff', minWidth: '20px', textAlign: 'center'}}>{misSemitonos}</span>
+                <span style={{color: '#fff', fontSize:'0.8rem'}}>{misSemitonos}</span>
                 <button onClick={() => setMisSemitonos(s => s + 1)} style={estilos.btnT}>+</button>
             </div>
             <div style={estilos.grupoControl}>
-                <small style={{color: '#666'}}>Letra:</small>
                 <button onClick={() => setTamanoLetra(s => s - 2)} style={estilos.btnT}>A-</button>
                 <button onClick={() => setTamanoLetra(s => s + 2)} style={estilos.btnT}>A+</button>
             </div>
@@ -87,6 +84,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
   );
 }
 
+// --- APP PRINCIPAL ---
 export default function App() {
   const [pantalla, setPantalla] = useState('principal');
   const [fecha, setFecha] = useState(new Date());
@@ -107,24 +105,29 @@ export default function App() {
 
   const fechaLegible = fecha.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
 
+  // Cargar biblioteca completa una sola vez
   useEffect(() => {
-    const cargarDatos = async () => {
+    const cargarBiblioteca = async () => {
       const { data } = await supabase.from('CANCIONES').select('*').order('titulo', { ascending: true });
       if (data) setCanciones(data.map((c, i) => ({ ...c, id: c.id || `id-${i}` })));
     };
-    cargarDatos();
+    cargarBiblioteca();
   }, []);
 
+  // CARGAR PLAN DE LA BASE DE DATOS AL CAMBIAR FECHA
   useEffect(() => {
     const cargarPlan = async () => {
       const fechaISO = fecha.toISOString().split('T')[0];
-      const { data } = await supabase.from('planes_culto').select('*').eq('fecha', fechaISO).maybeSingle();
+      const { data, error } = await supabase.from('planes_culto').select('*').eq('fecha', fechaISO).maybeSingle();
+      
       if (data) {
         setDirector(data.director || "");
         setSetlist(data.canciones || []);
         setExistePlan(true);
       } else {
-        setDirector(""); setSetlist([]); setExistePlan(false);
+        setDirector("");
+        setSetlist([]);
+        setExistePlan(false);
       }
     };
     cargarPlan();
@@ -141,10 +144,36 @@ export default function App() {
     }
   };
 
-  const guardar = async () => {
+  // GUARDAR EN SUPABASE
+  const guardarPlan = async () => {
     const fechaISO = fecha.toISOString().split('T')[0];
-    const { error } = await supabase.from('planes_culto').upsert({ fecha: fechaISO, director, canciones: setlist });
-    if (error) alert("Error"); else alert("¡Guardado!");
+    const { error } = await supabase.from('planes_culto').upsert({ 
+      fecha: fechaISO, 
+      director: director, 
+      canciones: setlist 
+    }, { onConflict: 'fecha' });
+
+    if (error) {
+      alert("Error al guardar: " + error.message);
+    } else {
+      alert("✅ Plan guardado en la nube");
+      setExistePlan(true);
+    }
+  };
+
+  // BORRAR PLAN DE SUPABASE
+  const borrarPlan = async () => {
+    if (window.confirm("¿Estás seguro de que quieres borrar este plan de forma permanente?")) {
+      const fechaISO = fecha.toISOString().split('T')[0];
+      const { error } = await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
+      
+      if (!error) {
+        setSetlist([]);
+        setDirector("");
+        setExistePlan(false);
+        alert("🗑️ Plan eliminado");
+      }
+    }
   };
 
   if (pantalla === 'ensayo') {
@@ -173,7 +202,7 @@ export default function App() {
       
       <div style={estilos.cajaCalendario}>
         <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
-        <input type="text" placeholder="Director..." value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
+        <input type="text" placeholder="Nombre del Director..." value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
       </div>
 
       <div style={estilos.contenedor}>
@@ -181,26 +210,32 @@ export default function App() {
 
         <div style={estilos.headerPlan}>
             <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer'}}>
-                PLAN {planContraido ? '(+) expandir' : '(-)'}
+                ORDEN DEL DÍA {planContraido ? '[ + ]' : '[ - ]'}
             </h4>
-            <button onClick={guardar} style={estilos.btnMiniG}>💾</button>
+            <div style={{display:'flex', gap:'5px'}}>
+               {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
+               <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
+            </div>
         </div>
         
         {!planContraido && (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                {setlist.map(c => (
-                  <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
-                    cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
-                    quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} 
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
+            <div style={estilos.areaPlan}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                    {setlist.length === 0 ? <p style={estilos.vacio}>Agrega canciones de la biblioteca...</p> : 
+                     setlist.map(c => (
+                      <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
+                        cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
+                        quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} 
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+            </div>
         )}
 
         <div style={estilos.divisor}>BIBLIOTECA</div>
-        <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+        <input type="text" placeholder="🔍 Buscar alabanza..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
         
         <div style={estilos.tabs}>
             {['Alabanza', 'Adoración'].map(t => (
@@ -220,9 +255,8 @@ export default function App() {
       </div>
 
       <style>{`
-        .custom-calendar { width: 100% !important; border: none !important; background: white !important; color: black !important; border-radius: 10px; overflow: hidden; padding: 5px; }
+        .custom-calendar { width: 100% !important; border: none !important; background: white !important; color: black !important; border-radius: 10px; overflow: hidden; padding: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .react-calendar__navigation button { color: black !important; font-weight: bold; }
-        .react-calendar__month-view__days__day--neighboringMonth { color: #ccc !important; }
         .react-calendar__tile { color: black !important; padding: 10px 5px !important; }
         .react-calendar__tile--active { background: #3b82f6 !important; color: white !important; border-radius: 5px; }
       `}</style>
@@ -231,33 +265,36 @@ export default function App() {
 }
 
 const estilos = {
-  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', boxSizing: 'border-box' },
+  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', boxSizing: 'border-box', fontFamily: 'sans-serif' },
   contenedor: { maxWidth: '500px', margin: '0 auto', width: '100%' },
-  logo: { textAlign: 'center', color: '#4da6ff', fontSize: '1.2rem' },
+  logo: { textAlign: 'center', color: '#4da6ff', fontSize: '1.4rem', textShadow: '0 0 10px #4da6ff44' },
   cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px', maxWidth: '400px', margin: '0 auto 15px' },
-  inputDir: { width: '100%', padding: '10px', marginTop: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box', textAlign: 'center', color: '#000' },
-  btnEnsayo: { width: '100%', padding: '12px', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 'bold', marginBottom: '15px' },
+  inputDir: { width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box', textAlign: 'center', color: '#000', fontSize: '1rem' },
+  btnEnsayo: { width: '100%', padding: '15px', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 'bold', marginBottom: '20px', fontSize: '1rem', cursor: 'pointer' },
   navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #333', position: 'sticky', top: 0, background: '#000', zIndex: 10 },
-  btnRegresar: { background: '#333', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', fontSize: '1.2rem' },
-  fechaEnsayo: { textAlign: 'center', fontSize: '0.9rem', color: '#888' },
-  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', fontSize: '0.8rem' },
-  btnMiniG: { background: '#10b981', border: 'none', padding: '5px 10px', borderRadius: '5px' },
+  btnRegresar: { background: '#333', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '1.2rem' },
+  fechaEnsayo: { textAlign: 'center', fontSize: '0.9rem', color: '#888', margin: '15px 0' },
+  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', margin: '10px 0' },
+  btnMiniG: { background: '#10b981', border: 'none', padding: '8px 15px', borderRadius: '5px', color: 'white', fontWeight: 'bold', fontSize: '0.7rem' },
+  btnBorrar: { background: '#444', border: 'none', padding: '8px 10px', borderRadius: '5px', cursor: 'pointer' },
+  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '10px', marginBottom: '10px' },
+  vacio: { textAlign: 'center', color: '#444', fontSize: '0.8rem', padding: '20px' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', cursor: 'pointer' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0', cursor: 'pointer' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
   manubrio: { fontSize: '1.5rem', color: '#444', paddingRight: '10px' },
-  tag: { background: '#4da6ff', color: '#000', padding: '2px 4px', borderRadius: '3px', fontSize: '0.55rem', fontWeight: 'bold', marginRight: '5px' },
+  tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.55rem', fontWeight: 'bold', marginRight: '5px', textTransform: 'uppercase' },
   miniSelect: { background: '#222', color: '#fff', border: 'none', fontSize: '0.7rem', padding: '5px', borderRadius: '5px' },
   btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.2rem' },
-  contenido: { padding: '10px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
-  controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px', background: '#111', padding: '5px', borderRadius: '5px' },
-  grupoControl: { display: 'flex', alignItems: 'center', gap: '5px' },
-  btnT: { background: '#222', border: '1px solid #444', color: '#4da6ff', padding: '5px 10px', borderRadius: '5px', fontWeight: 'bold' },
-  letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', lineHeight: '1.5', fontFamily: 'monospace', margin: 0 },
+  contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
+  controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
+  grupoControl: { display: 'flex', alignItems: 'center', gap: '5px', background: '#111', padding: '5px', borderRadius: '8px' },
+  btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '8px 12px', borderRadius: '5px', fontWeight: 'bold' },
+  letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', lineHeight: '1.6', fontFamily: 'monospace', margin: 0 },
   search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '10px', boxSizing: 'border-box' },
   tabs: { display: 'flex', gap: '5px', marginBottom: '15px' },
-  tabActiva: { flex: 1, padding: '10px', background: '#4da6ff', border: 'none', borderRadius: '8px', fontWeight: 'bold', color: '#000' },
-  tabInactiva: { flex: 1, padding: '10px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '8px' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '10px', background: '#111', borderRadius: '10px', marginBottom: '5px' },
-  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '30px', height: '30px', borderRadius: '50%' }
+  tabActiva: { flex: 1, padding: '12px', background: '#4da6ff', border: 'none', borderRadius: '8px', fontWeight: 'bold', color: '#000' },
+  tabInactiva: { flex: 1, padding: '12px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '8px' },
+  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '8px' },
+  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontWeight: 'bold', fontSize: '1.2rem' }
 }
