@@ -33,7 +33,6 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
     backgroundColor: '#111',
     width: '100%',
     boxSizing: 'border-box',
-    // touchAction: 'pan-y' permite el scroll normal del dedo, se bloquea automáticamente al arrastrar
     touchAction: isDragging ? 'none' : 'pan-y'
   };
 
@@ -44,25 +43,28 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
         {...attributes} 
         {...listeners}
         onClick={(e) => {
-          // Solo abre/cierra si no se inició un arrastre
           if (!isDragging) setCancionAbierta(estaAbierta ? null : c.id);
         }}
       >
         <div style={estilos.infoCuerpo}>
           {!modoLectura && <span style={estilos.manubrio}>☰</span>}
           <div style={{flex: 1}}>
-                <div style={{fontSize: '0.9rem', color: '#fff', fontWeight: 'bold'}}>
+                <div style={{fontSize: '0.85rem', color: '#fff', fontWeight: 'bold'}}>
                     {c.categoria && <span style={estilos.tag}>{c.categoria}</span>} {c.titulo} 
                 </div>
-                <div style={{fontSize: '0.75rem', color: '#4da6ff'}}>
+                <div style={{fontSize: '0.7rem', color: '#4da6ff'}}>
                     Tono: {transponerIndividual(c.tono || c.key, misSemitonos)}
                 </div>
           </div>
         </div>
         
         {!modoLectura && (
-            <div style={{display: 'flex', gap: '5px'}} onClick={(e) => e.stopPropagation()}>
-                <select value={c.categoria || ""} onChange={(e) => cambiarCategoria(c.id, e.target.value)} style={estilos.miniSelect}>
+            <div style={{display: 'flex', gap: '5px', alignItems: 'center'}} onClick={(e) => e.stopPropagation()}>
+                <select 
+                    value={c.categoria || ""} 
+                    onChange={(e) => cambiarCategoria(c.id, e.target.value)} 
+                    style={estilos.miniSelect}
+                >
                     <option value="">Tipo...</option>
                     {["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"].map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
@@ -93,7 +95,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
   );
 }
 
-// --- APP ---
+// --- APP PRINCIPAL ---
 export default function App() {
   const [pantalla, setPantalla] = useState('principal');
   const [fecha, setFecha] = useState(new Date());
@@ -106,16 +108,13 @@ export default function App() {
   const [filtroTipo, setFiltroTipo] = useState('Alabanza');
   const [planContraido, setPlanContraido] = useState(false);
 
-  // CONFIGURACIÓN DE SENSORES MEJORADA
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: { distance: 10 },
-    }),
-    useSensor(TouchSensor, {
+    useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(TouchSensor, { 
       activationConstraint: { 
-        delay: 3000, // 3 SEGUNDOS OBLIGATORIOS EN CELULAR
-        tolerance: 15 // Permite un margen de error si el dedo se mueve un poco
-      },
+        delay: 2000, // 2 SEGUNDOS PARA ACTIVAR MOVIMIENTO
+        tolerance: 15 
+      } 
     })
   );
 
@@ -162,6 +161,17 @@ export default function App() {
     }, { onConflict: 'fecha' });
     if (error) alert("Error: " + error.message);
     else { alert("✅ Sincronizado"); setExistePlan(true); }
+  };
+
+  const borrarPlan = async () => {
+    if (window.confirm("¿Estás seguro de borrar el plan de este día?")) {
+      const fechaISO = fecha.toISOString().split('T')[0];
+      const { error } = await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
+      if (!error) {
+        setSetlist([]); setDirector(""); setExistePlan(false);
+        alert("🗑️ Plan borrado");
+      }
+    }
   };
 
   const compartirWhatsApp = () => {
@@ -213,9 +223,10 @@ export default function App() {
         </div>
         <button onClick={() => setPantalla('ensayo')} style={estilos.btnEnsayo}>📖 EMPEZAR CULTO</button>
         <div style={estilos.headerPlan}>
-            <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
+            <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer', fontSize:'0.8rem'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
             <div style={{display:'flex', gap:'5px'}}>
                <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲 Enviar</button>
+               {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
                <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
             </div>
         </div>
@@ -271,14 +282,15 @@ const estilos = {
   headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px' },
   btnMiniG: { background: '#10b981', color: 'white', padding: '8px 12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
   btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.75rem' },
+  btnBorrar: { background: '#441111', color: '#ff4d4d', border: 'none', padding: '8px 10px', borderRadius: '8px' },
   areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px', cursor: 'pointer' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0', cursor: 'pointer' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
-  manubrio: { fontSize: '1.2rem', color: '#555' },
-  tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold' },
-  miniSelect: { background: '#333', color: '#fff', border: '1px solid #4da6ff', fontSize: '0.7rem', padding: '5px', borderRadius: '6px' },
-  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
+  manubrio: { fontSize: '1.1rem', color: '#444' },
+  tag: { background: '#4da6ff', color: '#000', padding: '1px 4px', borderRadius: '3px', fontSize: '0.55rem', fontWeight: 'bold', marginRight: '5px' },
+  miniSelect: { background: '#222', color: '#fff', border: '1px solid #444', fontSize: '0.65rem', padding: '4px', borderRadius: '5px', width: '80px' },
+  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.2rem', marginLeft: '5px' },
   contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
   controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
   grupoControl: { display: 'flex', alignItems: 'center', gap: '8px', background: '#111', padding: '6px 10px', borderRadius: '8px' },
