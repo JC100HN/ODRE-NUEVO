@@ -8,7 +8,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// --- COMPONENTE: ITEM DE CANCIÓN ---
+// --- COMPONENTE: ITEM DE CANCIÓN (Sortable) ---
 function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, cambiarCategoria, modoLectura }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const [misSemitonos, setMisSemitonos] = useState(0);
@@ -32,20 +32,16 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
     backgroundColor: '#111',
     width: '100%',
     boxSizing: 'border-box',
-    touchAction: 'none' // IMPORTANTE: Evita que el celular haga scroll mientras arrastras
+    touchAction: 'none' 
   };
 
   return (
     <div ref={setNodeRef} style={style}>
       <div style={estaAbierta ? estilos.headerActivo : estilos.headerNormal} onClick={() => setCancionAbierta(estaAbierta ? null : c.id)}>
         <div style={estilos.infoCuerpo}>
-          {!modoLectura && (
-            <span 
-              {...attributes} 
-              {...listeners} 
-              style={estilos.manubrio} 
-              onClick={(e) => e.stopPropagation()}
-            >
+          {/* El manubrio solo aparece si NO está abierta la letra para evitar conflictos en celular */}
+          {!modoLectura && !estaAbierta && (
+            <span {...attributes} {...listeners} style={estilos.manubrio} onClick={(e) => e.stopPropagation()}>
               ☰
             </span>
           )}
@@ -58,7 +54,18 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                 </div>
           </div>
         </div>
-        {!modoLectura && <button onClick={(e) => { e.stopPropagation(); quitarDelSetlist(c.id); }} style={estilos.btnX}>×</button>}
+        
+        <div style={{display: 'flex', gap: '5px', alignItems: 'center'}} onClick={(e) => e.stopPropagation()}>
+           {!modoLectura && (
+             <>
+                <select value={c.categoria || ""} onChange={(e) => cambiarCategoria(c.id, e.target.value)} style={estilos.miniSelect}>
+                    <option value="">Tipo...</option>
+                    {["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"].map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+                <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnX}>×</button>
+             </>
+           )}
+        </div>
       </div>
 
       {estaAbierta && (
@@ -96,15 +103,9 @@ export default function App() {
   const [filtroTipo, setFiltroTipo] = useState('Alabanza');
   const [planContraido, setPlanContraido] = useState(false);
 
-  // AJUSTE DE SENSORES PARA CELULAR
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { 
-      activationConstraint: { 
-        delay: 250, // Espera 250ms presionando para empezar a mover
-        tolerance: 5 
-      } 
-    }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -143,7 +144,7 @@ export default function App() {
   };
 
   const borrarPlan = async () => {
-    if (window.confirm("¿Borrar plan?")) {
+    if (window.confirm("¿Borrar el plan de este día?")) {
       const fechaISO = fecha.toISOString().split('T')[0];
       await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
       setSetlist([]); setDirector(""); setExistePlan(false);
@@ -157,7 +158,6 @@ export default function App() {
     mensaje += `👤 *Dirige:* ${director || 'Sin asignar'}\n\n`;
 
     const categorias = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
-    
     categorias.forEach(cat => {
       const cancionesCat = setlist.filter(c => c.categoria === cat);
       if (cancionesCat.length > 0) {
@@ -177,7 +177,7 @@ export default function App() {
     return (
       <div style={estilos.fondo}>
         <div style={estilos.navEnsayo}>
-            <button onClick={() => setPantalla('principal')} style={estilos.btnRegresar}>←</button>
+            <button onClick={() => setPantalla('principal')} style={estilos.btnRegresar}>← Volver</button>
             <div style={{textAlign: 'right'}}>
                 <div style={{fontSize: '0.6rem', color: '#4da6ff'}}>DIRECTOR</div>
                 <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold'}}>{director || '---'}</div>
@@ -202,7 +202,7 @@ export default function App() {
             <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
             <input 
                 type="text" 
-                placeholder="Escribe quién dirige aquí..." 
+                placeholder="Escribe quién dirige..." 
                 value={director} 
                 onChange={(e) => setDirector(e.target.value)} 
                 style={estilos.inputDir} 
