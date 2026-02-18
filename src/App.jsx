@@ -52,16 +52,9 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
         <div style={{display: 'flex', gap: '5px', alignItems: 'center'}} onClick={(e) => e.stopPropagation()}>
            {!modoLectura && (
              <>
-                {/* SELECTOR DE CATEGORÍAS REINSTALADO */}
-                <select 
-                    value={c.categoria || ""} 
-                    onChange={(e) => cambiarCategoria(c.id, e.target.value)} 
-                    style={estilos.miniSelect}
-                >
-                    <option value="">Tipo...</option>
-                    {["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"].map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                    ))}
+                <select value={c.categoria || ""} onChange={(e) => cambiarCategoria(c.id, e.target.value)} style={estilos.miniSelect}>
+                    <option value="">Categoría...</option>
+                    {["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"].map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
                 <button onClick={() => quitarDelSetlist(c.id)} style={estilos.btnX}>×</button>
              </>
@@ -91,7 +84,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
   );
 }
 
-// --- APP ---
+// --- APP PRINCIPAL ---
 export default function App() {
   const [pantalla, setPantalla] = useState('principal');
   const [fecha, setFecha] = useState(new Date());
@@ -145,7 +138,7 @@ export default function App() {
   };
 
   const borrarPlan = async () => {
-    if (window.confirm("¿Borrar el plan completo?")) {
+    if (window.confirm("¿Borrar plan?")) {
       const fechaISO = fecha.toISOString().split('T')[0];
       await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
       setSetlist([]); setDirector(""); setExistePlan(false);
@@ -153,12 +146,24 @@ export default function App() {
   };
 
   const compartirWhatsApp = () => {
-    const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-    let mensaje = `*ORDEN DEL CULTO - ${dia.toUpperCase()}*\n`;
-    mensaje += `*Director:* ${director || '---'}\n\n`;
-    setlist.forEach((c, i) => {
-      mensaje += `${i + 1}. ${c.categoria ? `[${c.categoria}] ` : ''}${c.titulo} (${c.tono || c.key})\n`;
+    const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+    let mensaje = `🎸 *ORDEN DE CULTO - ODRE NUEVO*\n`;
+    mensaje += `📅 *${dia}*\n`;
+    mensaje += `👤 *Dirige:* ${director || 'Sin asignar'}\n\n`;
+
+    const categorias = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
+    
+    categorias.forEach(cat => {
+      const cancionesCat = setlist.filter(c => c.categoria === cat);
+      if (cancionesCat.length > 0) {
+        mensaje += `*${cat.toUpperCase()}*:\n`;
+        cancionesCat.forEach(c => {
+          mensaje += `• ${c.titulo} (${c.tono || c.key})\n`;
+        });
+        mensaje += `\n`;
+      }
     });
+
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
   };
@@ -192,7 +197,7 @@ export default function App() {
             <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
             <input 
                 type="text" 
-                placeholder="¿Quién dirige?" 
+                placeholder="Escribe quién dirige aquí..." 
                 value={director} 
                 onChange={(e) => setDirector(e.target.value)} 
                 style={estilos.inputDir} 
@@ -206,7 +211,7 @@ export default function App() {
                 PLAN {planContraido ? '[+]' : '[-]'}
             </h4>
             <div style={{display:'flex', gap:'5px'}}>
-               {setlist.length > 0 && <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲</button>}
+               {setlist.length > 0 && <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲 Enviar</button>}
                {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
                <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
             </div>
@@ -225,12 +230,14 @@ export default function App() {
                     }
                 }}>
                   <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                    {setlist.map(c => (
+                    {setlist.length === 0 ? <p style={{textAlign:'center', color:'#555', fontSize:'0.8rem'}}>No hay canciones en el plan</p> : 
+                      setlist.map(c => (
                         <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
                             cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
                             quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} 
                         />
-                    ))}
+                      ))
+                    }
                   </SortableContext>
                 </DndContext>
             </div>
@@ -269,15 +276,14 @@ const estilos = {
   contenedor: { maxWidth: '450px', width: '100%' },
   logo: { textAlign: 'center', color: '#4da6ff', margin: '10px 0' },
   cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px' },
-  // ARREGLO DEL INPUT: Fondo gris claro para que se vea la letra negra al escribir
-  inputDir: { width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#e0e0e0', color: '#000', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxSizing: 'border-box' },
-  btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px' },
+  inputDir: { width: '100%', padding: '14px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#f0f0f0', color: '#000', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxSizing: 'border-box' },
+  btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px', fontSize: '1rem' },
   navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #333', width: '100%' },
   btnRegresar: { background: '#333', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px' },
   fechaEnsayo: { textAlign: 'center', fontSize: '0.8rem', color: '#888', margin: '20px 0' },
   headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px' },
   btnMiniG: { background: '#10b981', color: 'white', padding: '8px 12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
-  btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 10px', borderRadius: '8px' },
+  btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.75rem' },
   btnBorrar: { background: '#441111', color: '#ff4d4d', border: 'none', padding: '8px 10px', borderRadius: '8px' },
   areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
@@ -285,7 +291,7 @@ const estilos = {
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
   manubrio: { fontSize: '1.4rem', color: '#555' },
   tag: { background: '#4da6ff', color: '#000', padding: '2px 5px', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 'bold', textTransform: 'uppercase' },
-  miniSelect: { background: '#333', color: '#fff', border: '1px solid #4da6ff', fontSize: '0.75rem', padding: '6px', borderRadius: '6px' },
+  miniSelect: { background: '#333', color: '#fff', border: '1px solid #4da6ff', fontSize: '0.7rem', padding: '5px', borderRadius: '6px' },
   btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
   contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
   controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
