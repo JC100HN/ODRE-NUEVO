@@ -166,12 +166,13 @@ export default function App() {
     } catch (e) { alert("Error al buscar."); }
   };
 
+  // PANTALLA INICIO
   if (pantalla === 'inicio') {
     return (
       <div style={estilos.fondoInicio}>
         <div style={estilos.overlay}>
            <div style={estilos.contenedorInicio}>
-              <h1 style={estilos.logoLetra}>ITED</h1>
+              <h1 style={estilos.logoLetraDinamica}>ITED</h1>
               <div style={estilos.marcoLogoLibre}>
                 <img src="https://raw.githubusercontent.com/JC100HN/ODRE-NUEVO/main/src/assets/logo%20odre%20nuevo%202.png" alt="logo" style={estilos.imgLogoFull} />
               </div>
@@ -187,14 +188,18 @@ export default function App() {
     );
   }
 
+  // PANTALLA PREPARAR, ENSAYO O BIBLIA
   return (
     <div style={estilos.fondo}>
       <div style={estilos.contenedor}>
+        
+        {/* CABECERA DE NAVEGACIÓN */}
         <div style={estilos.navTop}>
            <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Inicio</button>
            <h2 style={estilos.logo}>🎸 {pantalla.toUpperCase()}</h2>
         </div>
 
+        {/* CONTENIDO: BIBLIA */}
         {pantalla === 'biblia' && (
           <div style={{width:'100%'}}>
              <input type="text" placeholder="Ej: Juan 3:16" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={estilos.search} />
@@ -203,6 +208,7 @@ export default function App() {
           </div>
         )}
 
+        {/* CONTENIDO: PREPARAR PLAN */}
         {pantalla === 'preparar' && (
           <>
             <div style={estilos.cajaCalendario}>
@@ -225,7 +231,8 @@ export default function App() {
           </>
         )}
 
-        {((pantalla === 'preparar' && !planContraido) || pantalla === 'ensayo') && pantalla !== 'biblia' && (
+        {/* LISTADO DE CANCIONES (EN MODO PREPARAR O ENSAYO) */}
+        {((pantalla === 'preparar' && !planContraido) || pantalla === 'ensayo') && (
             <div style={estilos.areaPlan}>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
@@ -238,13 +245,15 @@ export default function App() {
                     ))}
                   </SortableContext>
                 </DndContext>
+                {setlist.length === 0 && <div style={{textAlign:'center', padding:'20px', color:'#555'}}>No hay canciones en el plan</div>}
             </div>
         )}
 
+        {/* BIBLIOTECA (SOLO EN MODO PREPARAR) */}
         {pantalla === 'preparar' && (
           <>
             <div style={estilos.divisor}>BIBLIOTECA</div>
-            <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+            <input type="text" placeholder="🔍 Buscar canto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
             <div style={estilos.tabs}>
                 {['Alabanza', 'Adoración'].map(t => (
                     <button key={t} onClick={() => setFiltroTipo(t)} style={filtroTipo === t ? estilos.tabActiva : estilos.tabInactiva}>{t}</button>
@@ -254,14 +263,19 @@ export default function App() {
               <div key={c.id} style={estilos.itemRepo}>
                 <div style={{flex: 1}}>
                   <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
-                  <div style={{fontSize: '0.65rem', color: '#888'}}>{c.cantante || 'Voz'}</div>
+                  <div style={{fontSize: '0.65rem', color: '#888'}}>{c.cantante || c.artista || 'Voz'}</div>
                 </div>
-                <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}`, categoria: ''}])} style={estilos.btnP}>+</button>
+                <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}`, categoria: ''}])} style={estilos.btnP}>+</button>
               </div>
             ))}
           </>
         )}
       </div>
+      <style>{`
+        .custom-calendar { width: 100% !important; border: none !important; color: black !important; }
+        .react-calendar__tile { color: black !important; padding: 10px 5px !important; font-size: 0.8rem; }
+        .react-calendar__navigation button { color: black !important; font-weight: bold; }
+      `}</style>
     </div>
   )
 }
@@ -272,23 +286,23 @@ const estilos = {
     backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', width: '100vw', position: 'fixed', top: 0, left: 0, zIndex: 1000
   },
   overlay: { backgroundColor: 'rgba(0,0,0,0.85)', height: '100%', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  contenedorInicio: { textAlign: 'center', width: '90%', maxWidth: '400px' },
-  logoLetra: { color: '#4da6ff', fontSize: '4.2rem', fontWeight: '950', margin: 0, textShadow: '2px 2px 10px rgba(77, 166, 255, 0.5)', letterSpacing: '2px' },
-  subLogoDinamico: { color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '5px', marginBottom: '40px', textTransform: 'uppercase' },
-  marcoLogoLibre: { width: '180px', margin: '10px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  contenedorInicio: { textAlign: 'center', width: '85%', maxWidth: '380px' },
+  logoLetraDinamica: { color: '#4da6ff', fontSize: '4.5rem', fontWeight: '950', margin: 0, textShadow: '0px 0px 15px rgba(77, 166, 255, 0.4)', letterSpacing: '2px' },
+  subLogoDinamico: { color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '5px', marginBottom: '35px', textTransform: 'uppercase' },
+  marcoLogoLibre: { width: '100%', maxWidth: '220px', margin: '5px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   imgLogoFull: { width: '100%', height: 'auto', objectFit: 'contain' },
   gridMenu: { display: 'grid', gap: '15px' },
-  btnMenu: { padding: '20px', borderRadius: '15px', border: 'none', background: '#4da6ff', color: '#000', fontWeight: '900', fontSize: '1.1rem', cursor: 'pointer' },
+  btnMenu: { padding: '18px', borderRadius: '15px', border: 'none', background: '#4da6ff', color: '#000', fontWeight: 'bold', fontSize: '1rem' },
 
   fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', padding: '10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  contenedor: { width: '100%', maxWidth: '450px', boxSizing: 'border-box', paddingBottom: '30px' },
-  navTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', width: '100%' },
-  logo: { color: '#4da6ff', margin: 0, fontSize: '1.2rem', fontWeight: 'bold' },
+  contenedor: { width: '100%', maxWidth: '450px', boxSizing: 'border-box', paddingBottom: '40px' },
+  navTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', width: '100%', padding: '5px 0' },
+  logo: { color: '#4da6ff', margin: 0, fontSize: '1.1rem', fontWeight: 'bold' },
   btnRegresar: { background: '#222', color: '#fff', border: '1px solid #444', padding: '10px 15px', borderRadius: '12px', fontSize: '0.85rem' },
   cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px', width: '100%', boxSizing: 'border-box' },
   inputDir: { width: '100%', padding: '14px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#f0f0f0', textAlign: 'center', fontWeight: 'bold', fontSize: '1rem', color: '#000', boxSizing: 'border-box' },
-  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px', padding: '0 5px' },
-  btnMiniG: { background: '#10b981', color: 'white', padding: '10px 15px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
+  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px', padding: '0 5px', fontSize: '0.9rem' },
+  btnMiniG: { background: '#10b981', color: 'white', padding: '10px 15px', borderRadius: '8px', border: 'none', fontSize: '0.75rem', fontWeight: 'bold' },
   btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '10px', borderRadius: '8px' },
   btnBorrar: { background: '#441111', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px', borderRadius: '8px' },
   areaPlan: { background: '#0a0a0a', padding: '8px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', border: '1px solid #222' },
@@ -298,19 +312,19 @@ const estilos = {
   manubrio: { fontSize: '1.2rem', color: '#444' },
   tag: { background: '#4da6ff', color: '#000', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 'bold' },
   miniSelect: { background: '#222', color: '#fff', border: '1px solid #444', fontSize: '0.7rem', padding: '5px', borderRadius: '6px' },
-  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.5rem' },
+  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.5rem', padding: '0 5px' },
   contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
   controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
   grupoControl: { display: 'flex', alignItems: 'center', gap: '8px', background: '#111', padding: '8px', borderRadius: '10px' },
   btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '8px 14px', borderRadius: '8px' },
   letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.6' },
-  divisor: { margin: '20px 0 10px', color: '#4da6ff', textAlign: 'center', fontWeight: 'bold' },
-  search: { width: '100%', padding: '15px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '12px', marginBottom: '10px', boxSizing: 'border-box' },
-  tabs: { display: 'flex', gap: '8px', marginBottom: '15px' },
+  divisor: { margin: '25px 0 15px', color: '#4da6ff', textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem' },
+  search: { width: '100%', padding: '15px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '12px', marginBottom: '10px', boxSizing: 'border-box', fontSize: '1rem' },
+  tabs: { display: 'flex', gap: '10px', marginBottom: '15px' },
   tabActiva: { flex: 1, padding: '12px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '12px' },
   tabInactiva: { flex: 1, padding: '12px', background: '#111', color: '#666', border: '1px solid #333', borderRadius: '12px' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '12px', marginBottom: '8px', border: '1px solid #222' },
-  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '38px', height: '38px', borderRadius: '50%', fontSize: '1.5rem' },
-  btnEnsayoAccion: { width: '100%', padding: '15px', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 'bold' },
-  cajaTextoBiblia: { padding: '20px', background: '#111', borderRadius: '15px', marginTop: '15px', lineHeight: '1.7', color: '#ddd', fontSize: '1.1rem' }
+  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#111', borderRadius: '12px', marginBottom: '10px', border: '1px solid #222' },
+  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  btnEnsayoAccion: { width: '100%', padding: '15px', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 'bold', marginBottom: '10px' },
+  cajaTextoBiblia: { padding: '20px', background: '#111', borderRadius: '15px', marginTop: '15px', lineHeight: '1.7', color: '#eee', fontSize: '1.1rem', border: '1px solid #333' }
 }
