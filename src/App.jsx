@@ -382,20 +382,4 @@ const estilos = {
   navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', width: '100%', borderBottom: '1px solid #333' },
   btnRegresar: { background: '#222', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px' },
   cajaBiblia: { marginBottom: '20px' }
-
-  btnP: { 
-    background: '#3b82f6', 
-    border: 'none', 
-    color: '#fff', 
-    width: '35px', 
-    height: '35px', 
-    borderRadius: '50%', 
-    fontSize: '1.4rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0, // Quitamos padding para que no empuje el texto
-    lineHeight: 1, // Evita que la altura de línea lo mueva
-    cursor: 'pointer'
-  }
 }
