@@ -137,16 +137,21 @@ export default function App() {
     cargarBiblioteca();
   }, []);
 
+  // CARGAR PLAN CON LIMPIEZA AUTOMÁTICA
   useEffect(() => {
     const cargarPlan = async () => {
       const fechaISO = fecha.toISOString().split('T')[0];
       const { data } = await supabase.from('planes_culto').select('*').eq('fecha', fechaISO).maybeSingle();
-      if (data) {
+      
+      // Solo cargamos si hay data Y si tiene canciones. De lo contrario, reseteamos.
+      if (data && data.canciones && data.canciones.length > 0) {
         setDirector(data.director || "");
-        setSetlist(data.canciones || []);
+        setSetlist(data.canciones);
         setExistePlan(true);
       } else {
-        setDirector(""); setSetlist([]); setExistePlan(false);
+        setDirector(""); 
+        setSetlist([]); 
+        setExistePlan(false);
       }
     };
     cargarPlan();
@@ -164,9 +169,7 @@ export default function App() {
   };
 
   const borrarPlan = async () => {
-    // CAMBIA "1234" POR TU CLAVE PRIVADA
     const password = window.prompt("Introduce la clave de administrador para borrar:");
-    
     if (password === "1234") { 
       if (window.confirm("¿Estás seguro de borrar el plan de este día?")) {
         const fechaISO = fecha.toISOString().split('T')[0];
@@ -177,7 +180,7 @@ export default function App() {
         }
       }
     } else if (password !== null) {
-      alert("❌ Clave incorrecta. No tienes permiso.");
+      alert("❌ Clave incorrecta.");
     }
   };
 
@@ -264,6 +267,7 @@ export default function App() {
               <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
               <div style={{fontSize: '0.65rem', color: '#888'}}>{c.artista}</div>
             </div>
+            {/* BOTÓN CON CORRECCIÓN DE CENTRADO */}
             <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}`, categoria: ''}])} style={estilos.btnP}>+</button>
           </div>
         ))}
@@ -309,5 +313,20 @@ const estilos = {
   tabActiva: { flex: 1, padding: '10px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '10px' },
   tabInactiva: { flex: 1, padding: '10px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '10px' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '8px' },
-  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontSize: '1.2rem' }
+  // CORRECCIÓN AQUÍ: Flexbox para centrar el +
+  btnP: { 
+    background: '#3b82f6', 
+    border: 'none', 
+    color: '#fff', 
+    width: '35px', 
+    height: '35px', 
+    borderRadius: '50%', 
+    fontSize: '1.4rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0, // Quitamos padding para que no empuje el texto
+    lineHeight: 1, // Evita que la altura de línea lo mueva
+    cursor: 'pointer'
+  }
 }
