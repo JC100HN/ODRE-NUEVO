@@ -43,7 +43,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
         {...listeners}
         onClick={(e) => { if (!isDragging) setCancionAbierta(estaAbierta ? null : c.id); }}
       >
-        <div style={estilos.infoCuerpo}>
+        <div style={{display:'flex', alignItems:'center', flex:1}}>
           {!modoLectura && <span style={estilos.manubrio}>☰</span>}
           <div style={{flex: 1}}>
                 <div style={{fontSize: '0.9rem', color: '#fff', fontWeight: 'bold'}}>
@@ -86,6 +86,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
   );
 }
 
+// --- APP PRINCIPAL ---
 export default function App() {
   const [pantalla, setPantalla] = useState('inicio');
   const [fecha, setFecha] = useState(new Date());
@@ -101,7 +102,7 @@ export default function App() {
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 2000, tolerance: 15 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 1000, tolerance: 10 } })
   );
 
   const handleDragEnd = (event) => {
@@ -127,9 +128,9 @@ export default function App() {
     const cargarPlan = async () => {
       const fechaISO = fecha.toISOString().split('T')[0];
       const { data } = await supabase.from('planes_culto').select('*').eq('fecha', fechaISO).maybeSingle();
-      if (data && data.canciones) {
+      if (data) {
         setDirector(data.director || "");
-        setSetlist(data.canciones);
+        setSetlist(data.canciones || []);
       } else {
         setDirector(""); setSetlist([]);
       }
@@ -151,7 +152,7 @@ export default function App() {
         const fechaISO = fecha.toISOString().split('T')[0];
         await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
         setSetlist([]); setDirector("");
-        alert("Eliminado.");
+        alert("Plan borrado.");
     }
   };
 
@@ -171,11 +172,12 @@ export default function App() {
       const res = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
       const data = await res.json();
       if (data.text) setTextoBiblico(data.text);
-      else alert("Cita no encontrada.");
-    } catch (e) { alert("Error de red."); }
+      else alert("No se encontró. Ejemplo: Juan 3:16");
+    } catch (e) { alert("Error de conexión"); }
     setCargandoBiblia(false);
   };
 
+  // --- VISTA INICIO ---
   if (pantalla === 'inicio') {
     return (
       <div style={estilos.fondoInicioClaro}>
@@ -186,11 +188,12 @@ export default function App() {
           <span style={{...estilos.instFlotante, bottom:'10%', right:'5%', color:'#f59e0b'}}>🎷</span>
         </div>
         <div style={estilos.contenedorCentrado}>
+          <h2 style={{color:'#1e40af', fontWeight:'900', margin:0, fontSize:'2rem'}}>ITED</h2>
           <div style={estilos.marcoLogo}>
              <img src="https://raw.githubusercontent.com/JC100HN/ODRE-NUEVO/main/src/assets/logo%20odre%20nuevo.png" alt="Logo" style={estilos.imagenLogo} />
           </div>
-          <h1 style={estilos.tituloAppClaro}>ITED MONTE ALEGRE</h1>
-          <p style={estilos.subtituloAppClaro}>Ministerio de Alabanza</p>
+          <h2 style={{color:'#1e40af', fontWeight:'900', margin:0, fontSize:'1.8rem'}}>MONTE ALEGRE</h2>
+          <p style={{color:'#64748b', marginBottom:'30px'}}>Ministerio de Alabanza</p>
           <div style={estilos.menuGrid}>
             <button style={estilos.cardMenuClaro} onClick={() => setPantalla('preparar')}><span>📝</span><b>Preparar</b></button>
             <button style={estilos.cardMenuClaro} onClick={() => setPantalla('ensayo')}><span>📖</span><b>Culto</b></button>
@@ -202,10 +205,11 @@ export default function App() {
     );
   }
 
+  // --- VISTAS DE TRABAJO ---
   return (
     <div style={estilos.fondoGeneral}>
        <div style={estilos.contenedorPrincipal}>
-          <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px'}}>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', width:'100%'}}>
               <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
               {pantalla === 'preparar' && (
                   <div style={{display:'flex', gap:'8px'}}>
@@ -217,12 +221,13 @@ export default function App() {
 
           {pantalla === 'biblia' && (
             <>
-              <h2 style={estilos.logo}>Biblia RVR</h2>
+              <h2 style={estilos.logo}>Sagrada Biblia</h2>
               <div style={{display:'flex', gap:'8px', marginBottom:'15px'}}>
-                  <input type="text" placeholder="Ej: Juan 3:16" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={{...estilos.search, marginBottom:0}} />
+                  <input type="text" placeholder="Ej: Salmos 23" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={{...estilos.search, marginBottom:0}} />
                   <button onClick={buscarBiblia} style={estilos.btnP}>🔍</button>
               </div>
-              {textoBiblico && <div style={estilos.areaPlan}><p style={{lineHeight:'1.8', fontSize:'1.1rem'}}>{textoBiblico}</p></div>}
+              {cargandoBiblia && <p style={{textAlign:'center'}}>Cargando...</p>}
+              {textoBiblico && <div style={estilos.areaPlan}><p style={{lineHeight:'1.8', fontSize:'1.1rem', whiteSpace:'pre-wrap'}}>{textoBiblico}</p></div>}
             </>
           )}
 
@@ -230,10 +235,10 @@ export default function App() {
             <>
               <div style={estilos.cajaCalendario}>
                   <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
-                  <input type="text" placeholder="Nombre del Director" value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDirCentrado} />
+                  <input type="text" placeholder="¿Quién dirige?" value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDirCentrado} />
               </div>
               <div style={estilos.headerPlan}>
-                  <h4 onClick={() => setPlanContraido(!planContraido)}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
+                  <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
                   <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
               </div>
               {!planContraido && (
@@ -252,13 +257,13 @@ export default function App() {
               )}
               <div style={estilos.divisor}>BIBLIOTECA</div>
               <input type="text" placeholder="🔍 Buscar canción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
-              {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).slice(0, 10).map(c => (
+              {canciones.filter(c => (c.titulo||'').toLowerCase().includes(busqueda.toLowerCase())).slice(0, 15).map(c => (
                 <div key={c.id} style={estilos.itemRepo}>
                   <div style={{flex: 1}}>
                     <div style={{fontSize: '0.9rem', fontWeight: 'bold'}}>{c.titulo}</div>
                     <div style={{fontSize: '0.7rem', color: '#666'}}>{c.cantante || '---'}</div>
                   </div>
-                  <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}` }])} style={estilos.btnP}>+</button>
+                  <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}` }])} style={estilos.btnP}>+</button>
                 </div>
               ))}
             </>
@@ -267,7 +272,7 @@ export default function App() {
           {pantalla === 'ensayo' && (
             <>
               <div style={estilos.navEnsayo}>
-                  <div style={{fontSize: '1.2rem', fontWeight: 'bold', color:'#4da6ff'}}>CULTO: {director || '---'}</div>
+                  <div style={{fontSize: '1.2rem', fontWeight: 'bold', color:'#4da6ff'}}>DIRECTOR: {director || '---'}</div>
               </div>
               {setlist.map(c => <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />)}
             </>
@@ -281,24 +286,22 @@ const estilos = {
   fondoInicioClaro: { background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0 },
   capaInstrumentos: { position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' },
   instFlotante: { position: 'absolute', fontSize: '6rem', opacity: 0.1 },
-  contenedorCentrado: { zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '85%', maxWidth: '400px', textAlign:'center' },
-  marcoLogo: { width: '150px', height: '150px', borderRadius: '40px', overflow: 'hidden', marginBottom: '15px', border: '3px solid #fff', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' },
+  contenedorCentrado: { zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '90%', maxWidth: '400px' },
+  marcoLogo: { width: '140px', height: '140px', borderRadius: '40px', overflow: 'hidden', margin: '15px 0', border: '3px solid #fff', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' },
   imagenLogo: { width: '100%', height: '100%', objectFit: 'cover' },
-  tituloAppClaro: { fontSize: '2.1rem', fontWeight: '900', color: '#1e40af', margin: '5px 0' },
-  subtituloAppClaro: { fontSize: '1rem', color: '#64748b', marginBottom: '40px' },
   menuGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', width: '100%' },
-  cardMenuClaro: { background: '#fff', border: 'none', borderRadius: '24px', padding: '25px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', color: '#334155' },
-  fondoGeneral: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', overflowY: 'auto' },
+  cardMenuClaro: { background: '#fff', border: 'none', borderRadius: '24px', padding: '20px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#334155', cursor: 'pointer', fontWeight:'bold' },
+  fondoGeneral: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0' },
   contenedorPrincipal: { width: '100%', maxWidth: '450px', padding: '15px', boxSizing: 'border-box' },
   btnAtras: { background: '#222', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '10px' },
-  btnWA: { background: '#25D366', color: '#fff', border: 'none', padding: '10px 12px', borderRadius: '10px', fontSize:'0.8rem', fontWeight:'bold' },
-  btnBorrar: { background: '#ef4444', color: '#fff', border: 'none', padding: '10px 12px', borderRadius: '10px', fontSize:'0.8rem', fontWeight:'bold' },
+  btnWA: { background: '#25D366', color: '#fff', border: 'none', padding: '10px 12px', borderRadius: '10px', fontSize:'0.75rem', fontWeight:'bold' },
+  btnBorrar: { background: '#ef4444', color: '#fff', border: 'none', padding: '10px 12px', borderRadius: '10px', fontSize:'0.75rem', fontWeight:'bold' },
   logo: { color: '#4da6ff', margin: '15px 0', textAlign: 'center' },
   cajaCalendario: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '20px', width:'100%', boxSizing:'border-box' },
   inputDirCentrado: { width: '100%', padding: '14px', marginTop: '15px', borderRadius: '12px', border: '2px solid #e2e8f0', background: '#f8fafc', color: '#1e293b', fontWeight: 'bold', textAlign: 'center', boxSizing:'border-box' },
   headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', color:'#4da6ff' },
   btnMiniG: { background: '#3b82f6', color: 'white', padding: '10px 15px', borderRadius: '10px', border: 'none', fontWeight: 'bold' },
-  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '15px', marginBottom: '20px' },
+  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '15px', marginBottom: '20px', border:'1px solid #222' },
   headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#161616', borderRadius: '12px', marginBottom: '6px' },
   headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#1e3a8a', borderRadius: '12px 12px 0 0' },
   tag: { background: '#4da6ff', color: '#000', padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 'bold', marginRight:'8px' },
@@ -311,7 +314,8 @@ const estilos = {
   letraPre: { whiteSpace: 'pre-wrap', color: '#eee', fontFamily: 'monospace', lineHeight: '1.8' },
   divisor: { margin: '20px 0 10px', color: '#4da6ff', textAlign: 'center', fontWeight: 'bold' },
   search: { width: '100%', padding: '16px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '15px', marginBottom: '15px', boxSizing: 'border-box' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#111', borderRadius: '15px', marginBottom: '10px' },
-  btnP: { background: '#3b82f6', color: '#fff', width: '45px', height: '45px', borderRadius: '50%', border: 'none', fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  navEnsayo: { textAlign:'center', paddingBottom: '20px', borderBottom: '1px solid #333', marginBottom: '20px' }
+  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#111', borderRadius: '15px', marginBottom: '10px', alignItems:'center' },
+  btnP: { background: '#3b82f6', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', border: 'none', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  navEnsayo: { textAlign:'center', paddingBottom: '20px', borderBottom: '1px solid #333', marginBottom: '20px' },
+  manubrio: { marginRight: '10px', color: '#444' }
 }
