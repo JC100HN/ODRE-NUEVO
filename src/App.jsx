@@ -53,7 +53,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                     {c.categoria && <span style={estilos.tag}>{c.categoria}</span>} {c.titulo} 
                 </div>
                 <div style={{fontSize: '0.7rem', color: '#4da6ff'}}>
-                    Tono: {transponerIndividual(c.tono || c.key, misSemitonos)}
+                    Tono: {transponerIndividual(c.tono || c.key, misSemitonos)} | 🎤 {c.cantante || c.vocal || 'Voz'}
                 </div>
           </div>
         </div>
@@ -97,7 +97,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
 
 // --- APP PRINCIPAL ---
 export default function App() {
-  const [pantalla, setPantalla] = useState('inicio'); // Cambiado a 'inicio' por defecto
+  const [pantalla, setPantalla] = useState('inicio');
   const [fecha, setFecha] = useState(new Date());
   const [director, setDirector] = useState("");
   const [canciones, setCanciones] = useState([]);
@@ -110,12 +110,7 @@ export default function App() {
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
-    useSensor(TouchSensor, { 
-      activationConstraint: { 
-        delay: 2000, 
-        tolerance: 15 
-      } 
-    })
+    useSensor(TouchSensor, { activationConstraint: { delay: 2000, tolerance: 15 } })
   );
 
   const handleDragEnd = (event) => {
@@ -146,9 +141,7 @@ export default function App() {
         setSetlist(data.canciones);
         setExistePlan(true);
       } else {
-        setDirector(""); 
-        setSetlist([]); 
-        setExistePlan(false);
+        setDirector(""); setSetlist([]); setExistePlan(false);
       }
     };
     cargarPlan();
@@ -157,33 +150,26 @@ export default function App() {
   const guardarPlan = async () => {
     const fechaISO = fecha.toISOString().split('T')[0];
     const { error } = await supabase.from('planes_culto').upsert({ 
-      fecha: fechaISO, 
-      director: director, 
-      canciones: setlist 
+      fecha: fechaISO, director, canciones: setlist 
     }, { onConflict: 'fecha' });
     if (error) alert("Error: " + error.message);
     else { alert("✅ Sincronizado"); setExistePlan(true); }
   };
 
   const borrarPlan = async () => {
-    const password = window.prompt("Introduce la clave de administrador para borrar:");
+    const password = window.prompt("Clave para borrar:");
     if (password === "1234") { 
-      if (window.confirm("¿Estás seguro de borrar el plan de este día?")) {
+      if (window.confirm("¿Borrar plan?")) {
         const fechaISO = fecha.toISOString().split('T')[0];
         const { error } = await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
-        if (!error) {
-          setSetlist([]); setDirector(""); setExistePlan(false);
-          alert("🗑️ Plan borrado");
-        }
+        if (!error) { setSetlist([]); setDirector(""); setExistePlan(false); alert("🗑️ Borrado"); }
       }
-    } else if (password !== null) {
-      alert("❌ Clave incorrecta.");
     }
   };
 
   const compartirWhatsApp = () => {
     const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
-    let mensaje = `🎸 *ORDEN DE CULTO - ODRE NUEVO*\n📅 *${dia}*\n👤 *Dirige:* ${director || '---'}\n\n`;
+    let mensaje = `🎸 *ORDEN DE CULTO - ITED*\n📅 *${dia}*\n👤 *Dirige:* ${director || '---'}\n\n`;
     const cats = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
     cats.forEach(cat => {
       const items = setlist.filter(c => c.categoria === cat);
@@ -196,7 +182,6 @@ export default function App() {
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
-  // --- RENDER: PANTALLA INICIO ---
   if (pantalla === 'inicio') {
     return (
       <div style={estilos.fondoInicio}>
@@ -217,60 +202,49 @@ export default function App() {
     );
   }
 
-  // --- RENDER: PANTALLA ENSAYO ---
-  if (pantalla === 'ensayo') {
-    return (
-      <div style={estilos.fondo}>
-        <div style={estilos.navEnsayo}>
+  return (
+    <div style={estilos.fondo}>
+      <div style={estilos.contenedor}>
+        {pantalla === 'ensayo' ? (
+          <div style={estilos.navEnsayo}>
             <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>←</button>
             <div style={{textAlign: 'right'}}>
                 <div style={{fontSize: '0.6rem', color: '#4da6ff'}}>DIRECTOR</div>
                 <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold'}}>{director || '---'}</div>
             </div>
-        </div>
-        <div style={estilos.contenedor}>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                {setlist.map(c => (
-                    <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />
-                ))}
-              </SortableContext>
-            </DndContext>
-        </div>
-      </div>
-    );
-  }
+          </div>
+        ) : (
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+            <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Inicio</button>
+            <h2 style={estilos.logo}>🎸 ITED</h2>
+          </div>
+        )}
 
-  // --- RENDER: PANTALLA PREPARAR (ANTERIOR PRINCIPAL) ---
-  return (
-    <div style={estilos.fondo}>
-      <div style={estilos.contenedor}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-           <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Inicio</button>
-           <h2 style={estilos.logo}>🎸 Odre Nuevo</h2>
-        </div>
-        
-        <div style={estilos.cajaCalendario}>
-            <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
-            <input type="text" placeholder="¿Quién dirige?" value={director} 
-                onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
-        </div>
-
-        <div style={estilos.headerPlan}>
-            <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer', fontSize:'0.8rem'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
-            <div style={{display:'flex', gap:'5px'}}>
-               <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲 Enviar</button>
-               {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
-               <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
+        {pantalla === 'preparar' && (
+          <>
+            <div style={estilos.cajaCalendario}>
+                <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
+                <input type="text" placeholder="¿Quién dirige?" value={director} 
+                    onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
             </div>
-        </div>
+            <div style={estilos.headerPlan}>
+                <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer', fontSize:'0.8rem'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
+                <div style={{display:'flex', gap:'5px'}}>
+                   <button onClick={compartirWhatsApp} style={estilos.btnWA}>📲 Enviar</button>
+                   <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>
+                   <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
+                </div>
+            </div>
+          </>
+        )}
 
-        {!planContraido && (
+        {(!planContraido || pantalla === 'ensayo') && (
             <div style={estilos.areaPlan}>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
                     {setlist.map(c => (
                         <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
+                            modoLectura={pantalla === 'ensayo'}
                             cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
                             quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} 
                         />
@@ -280,22 +254,26 @@ export default function App() {
             </div>
         )}
 
-        <div style={estilos.divisor}>BIBLIOTECA</div>
-        <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
-        <div style={estilos.tabs}>
-            {['Alabanza', 'Adoración'].map(t => (
-                <button key={t} onClick={() => setFiltroTipo(t)} style={filtroTipo === t ? estilos.tabActiva : estilos.tabInactiva}>{t}</button>
-            ))}
-        </div>
-        {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
-          <div key={c.id} style={estilos.itemRepo}>
-            <div style={{flex: 1}}>
-              <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
-              <div style={{fontSize: '0.65rem', color: '#888'}}>{c.artista}</div>
+        {pantalla === 'preparar' && (
+          <>
+            <div style={estilos.divisor}>BIBLIOTECA</div>
+            <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+            <div style={estilos.tabs}>
+                {['Alabanza', 'Adoración'].map(t => (
+                    <button key={t} onClick={() => setFiltroTipo(t)} style={filtroTipo === t ? estilos.tabActiva : estilos.tabInactiva}>{t}</button>
+                ))}
             </div>
-            <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}`, categoria: ''}])} style={estilos.btnP}>+</button>
-          </div>
-        ))}
+            {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
+              <div key={c.id} style={estilos.itemRepo}>
+                <div style={{flex: 1}}>
+                  <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
+                  <div style={{fontSize: '0.65rem', color: '#888'}}>{c.cantante || c.artista || 'Voz'}</div>
+                </div>
+                <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}`, categoria: ''}])} style={estilos.btnP}>+</button>
+              </div>
+            ))}
+          </>
+        )}
       </div>
       <style>{`
         .custom-calendar { width: 100% !important; border: none !important; color: black !important; border-radius: 10px; }
@@ -307,64 +285,47 @@ export default function App() {
 }
 
 const estilos = {
-  // NUEVOS ESTILOS PARA INICIO
   fondoInicio: { 
     backgroundImage: 'url("https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=1000")', 
-    backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', width: '100%' 
+    backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', width: '100vw', position: 'fixed', top: 0, left: 0
   },
-  overlay: { backgroundColor: 'rgba(0,0,0,0.7)', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  overlay: { backgroundColor: 'rgba(0,0,0,0.75)', height: '100%', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   contenedorInicio: { textAlign: 'center', width: '90%', maxWidth: '400px' },
-  logoLetra: { color: '#4da6ff', fontSize: '3rem', fontWeight: '900', margin: 0 },
-  subLogo: { color: '#fff', fontSize: '1.2rem', letterSpacing: '4px', marginBottom: '30px' },
-  marcoLogo: { width: '120px', margin: '20px auto', borderRadius: '30px', overflow: 'hidden', border: '3px solid #4da6ff' },
-  gridMenu: { display: 'grid', gap: '15px' },
-  btnMenu: { padding: '20px', borderRadius: '15px', border: 'none', background: '#4da6ff', color: '#000', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' },
+  logoLetra: { color: '#4da6ff', fontSize: '3.5rem', fontWeight: '900', margin: 0 },
+  subLogo: { color: '#fff', fontSize: '1.2rem', letterSpacing: '4px', marginBottom: '40px' },
+  marcoLogo: { width: '140px', margin: '20px auto', borderRadius: '35px', overflow: 'hidden', border: '3px solid #4da6ff' },
+  gridMenu: { display: 'grid', gap: '20px' },
+  btnMenu: { padding: '22px', borderRadius: '18px', border: 'none', background: '#4da6ff', color: '#000', fontWeight: 'bold', fontSize: '1.1rem' },
 
-  // ESTILOS EXISTENTES (MANTENIDOS)
-  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', padding: '15px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   contenedor: { maxWidth: '450px', width: '100%' },
-  logo: { textAlign: 'center', color: '#4da6ff', margin: '10px 0' },
+  logo: { textAlign: 'center', color: '#4da6ff', margin: 0 },
   cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px' },
   inputDir: { width: '100%', padding: '14px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#f0f0f0', color: '#000', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxSizing: 'border-box' },
-  btnEnsayo: { width: '100%', padding: '18px', background: '#3b82f6', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '20px' },
-  navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #333', width: '100%', position: 'sticky', top: 0, backgroundColor: '#000', zIndex: 100 },
-  btnRegresar: { background: '#333', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '0.8rem' },
-  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px', marginTop: '15px' },
+  navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #333', marginBottom: '20px', width: '100%' },
+  btnRegresar: { background: '#222', color: '#fff', border: '1px solid #444', padding: '8px 15px', borderRadius: '10px', fontSize: '0.8rem' },
+  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4da6ff', marginBottom: '10px' },
   btnMiniG: { background: '#10b981', color: 'white', padding: '8px 12px', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.75rem' },
   btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.75rem' },
-  btnBorrar: { background: '#441111', color: '#ff4d4d', border: 'none', padding: '8px 10px', borderRadius: '8px' },
-  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px' },
-  headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px', cursor: 'pointer' },
-  headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0', cursor: 'pointer' },
+  btnBorrar: { background: '#441111', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '8px 10px', borderRadius: '8px' },
+  areaPlan: { background: '#0a0a0a', padding: '5px', borderRadius: '12px' },
+  headerNormal: { display: 'flex', padding: '14px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
+  headerActivo: { display: 'flex', padding: '14px', background: '#1e3a8a', borderRadius: '8px 8px 0 0' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
   manubrio: { fontSize: '1.1rem', color: '#444' },
-  tag: { background: '#4da6ff', color: '#000', padding: '1px 4px', borderRadius: '3px', fontSize: '0.55rem', fontWeight: 'bold', marginRight: '5px' },
-  miniSelect: { background: '#222', color: '#fff', border: '1px solid #444', fontSize: '0.65rem', padding: '4px', borderRadius: '5px', width: '80px' },
-  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.2rem', marginLeft: '5px' },
+  tag: { background: '#4da6ff', color: '#000', padding: '1px 5px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 'bold', marginRight: '5px' },
+  miniSelect: { background: '#222', color: '#fff', border: '1px solid #444', fontSize: '0.65rem', padding: '5px', borderRadius: '6px' },
+  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
   contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
   controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
-  grupoControl: { display: 'flex', alignItems: 'center', gap: '8px', background: '#111', padding: '6px 10px', borderRadius: '8px' },
-  btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '6px 12px', borderRadius: '6px' },
-  letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.6' },
-  divisor: { margin: '20px 0 10px', color: '#4da6ff', textAlign: 'center', fontSize: '0.8rem' },
-  search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '10px', boxSizing: 'border-box' },
-  tabs: { display: 'flex', gap: '8px', marginBottom: '15px' },
-  tabActiva: { flex: 1, padding: '10px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '10px' },
-  tabInactiva: { flex: 1, padding: '10px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '10px' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '8px' },
-  btnP: { 
-    background: '#3b82f6', 
-    border: 'none', 
-    color: '#fff', 
-    width: '35px', 
-    height: '35px', 
-    borderRadius: '50%', 
-    fontSize: '1.4rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-    lineHeight: 1,
-    cursor: 'pointer'
-  }
+  grupoControl: { display: 'flex', alignItems: 'center', gap: '10px', background: '#111', padding: '8px', borderRadius: '10px' },
+  btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '6px 14px', borderRadius: '8px' },
+  letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.7' },
+  divisor: { margin: '25px 0 15px', color: '#4da6ff', textAlign: 'center', fontWeight: 'bold' },
+  search: { width: '100%', padding: '15px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '12px', marginBottom: '15px', boxSizing: 'border-box' },
+  tabs: { display: 'flex', gap: '10px', marginBottom: '15px' },
+  tabActiva: { flex: 1, padding: '12px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '12px' },
+  tabInactiva: { flex: 1, padding: '12px', background: '#111', color: '#666', border: '1px solid #333', borderRadius: '12px' },
+  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#111', borderRadius: '12px', marginBottom: '10px' },
+  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }
 }
