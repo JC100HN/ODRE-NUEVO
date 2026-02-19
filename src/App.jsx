@@ -102,7 +102,7 @@ export default function App() {
   const [filtroTipo, setFiltroTipo] = useState('Alabanza');
   const [planContraido, setPlanContraido] = useState(false);
 
-  // Estados para Biblia
+  // Biblia
   const [citaBiblica, setCitaBiblica] = useState('');
   const [textoBiblico, setTextoBiblico] = useState('');
   const [cargandoBiblia, setCargandoBiblia] = useState(false);
@@ -155,53 +155,33 @@ export default function App() {
     else { alert("✅ Sincronizado"); setExistePlan(true); }
   };
 
-  const borrarPlan = async () => {
-    const password = window.prompt("Introduce la clave de administrador para borrar:");
-    if (password === "1234") { 
-      if (window.confirm("¿Borrar el plan?")) {
-        const fechaISO = fecha.toISOString().split('T')[0];
-        await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
-        setSetlist([]); setDirector(""); setExistePlan(false);
-        alert("🗑️ Plan borrado");
-      }
-    }
-  };
-
   const buscarBiblia = async () => {
     if (!citaBiblica) return;
     setCargandoBiblia(true);
     try {
-      // API Gratuita en Español (Reina Valera)
       const res = await fetch(`https://bible-api.com/${citaBiblica}?translation=rvr09`);
       const data = await res.json();
-      if (data.text) {
-        setTextoBiblico(data.text);
-      } else {
-        alert("No se encontró la cita. Ej: 'Juan 3:16'");
-      }
-    } catch (e) {
-      alert("Error al conectar con la Biblia");
-    }
+      if (data.text) setTextoBiblico(data.text);
+      else alert("No se encontró la cita.");
+    } catch (e) { alert("Error al conectar con la Biblia"); }
     setCargandoBiblia(false);
   };
 
-  // --- VISTA: INICIO / MENÚ ---
+  // --- VISTA: INICIO ---
   if (pantalla === 'inicio') {
-    const urlLogo = "/logo_odre_nuevo.jpg"; // REEMPLAZA CON TU RUTA REAL
-
     return (
-      <div style={estilos.fondoInicio}>
+      <div style={estilos.fondoCompleto}>
         <div style={estilos.fondoInstrumentos}>
           <span style={{...estilos.inst, top:'10%', left:'5%'}}>🎸</span>
           <span style={{...estilos.inst, top:'20%', right:'10%'}}>🎹</span>
           <span style={{...estilos.inst, bottom:'15%', left:'15%'}}>🥁</span>
           <span style={{...estilos.inst, bottom:'25%', right:'5%'}}>🎷</span>
-          <span style={{...estilos.inst, top:'45%', left:'40%'}}>🎻</span>
         </div>
 
-        <div style={estilos.contenedorInicio}>
+        <div style={estilos.contenedorCentrado}>
           <div style={estilos.marcoLogo}>
-            <img src={urlLogo} alt="Logo" style={estilos.imagenLogo} onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=ODRE+NUEVO'} />
+             {/* Cambia la URL por el nombre del archivo si lo pones en la carpeta public */}
+             <img src="/logo.png" alt="Logo" style={estilos.imagenLogo} onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=ODRE+NUEVO'} />
           </div>
           <h1 style={estilos.tituloApp}>ODRE NUEVO</h1>
           <p style={estilos.subtituloApp}>Alabanza y Adoración</p>
@@ -229,157 +209,123 @@ export default function App() {
     );
   }
 
-  // --- VISTA: BIBLIA ---
-  if (pantalla === 'biblia') {
-    return (
-      <div style={estilos.fondo}>
-        <div style={estilos.contenedor}>
-          <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
-          <h2 style={estilos.logo}>Lectura Bíblica</h2>
-          <div style={estilos.cajaBiblia}>
-            <input 
-              type="text" 
-              placeholder="Ej: Juan 3:16" 
-              value={citaBiblica} 
-              onChange={(e) => setCitaBiblica(e.target.value)} 
-              style={estilos.search}
-            />
-            <button onClick={buscarBiblia} style={estilos.btnEnsayo}>
-              {cargandoBiblia ? "Buscando..." : "Buscar Versículo"}
-            </button>
-          </div>
-          {textoBiblico && (
-            <div style={estilos.areaPlan}>
-              <p style={{fontSize: '1.2rem', lineHeight: '1.8', color: '#fff'}}>{textoBiblico}</p>
-            </div>
+  // --- VISTAS GENERALES ---
+  return (
+    <div style={estilos.fondoGeneral}>
+       <div style={estilos.contenedor}>
+          {pantalla === 'biblia' && (
+            <>
+              <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
+              <h2 style={estilos.logo}>Lectura Bíblica</h2>
+              <input type="text" placeholder="Ej: Juan 3:16" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={estilos.search} />
+              <button onClick={buscarBiblia} style={estilos.btnAccion}>{cargandoBiblia ? "Buscando..." : "Buscar Versículo"}</button>
+              {textoBiblico && <div style={estilos.areaPlan}><p style={{lineHeight: '1.6'}}>{textoBiblico}</p></div>}
+            </>
           )}
-        </div>
-      </div>
-    );
-  }
 
-  // --- VISTA: PREPARAR CULTO ---
-  if (pantalla === 'preparar') {
-    return (
-      <div style={estilos.fondo}>
-        <div style={estilos.contenedor}>
-          <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
-          <h2 style={estilos.logo}>Preparar Culto</h2>
-          <div style={estilos.cajaCalendario}>
-              <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
-              <input type="text" placeholder="¿Quién dirige?" value={director} 
-                  onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
-          </div>
-          <div style={estilos.headerPlan}>
-              <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer', fontSize:'0.8rem'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
-              <div style={{display:'flex', gap:'5px'}}>
-                 {existePlan && <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>}
-                 <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
+          {pantalla === 'preparar' && (
+            <>
+              <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
+              <h2 style={estilos.logo}>Preparar Culto</h2>
+              <div style={estilos.cajaCalendario}>
+                  <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
+                  <input type="text" placeholder="¿Quién dirige?" value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
               </div>
-          </div>
-          {!planContraido && (
-              <div style={estilos.areaPlan}>
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                      {setlist.map(c => (
-                          <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
-                              cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
-                              quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} 
-                          />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
+              <div style={estilos.headerPlan}>
+                  <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer', fontSize:'0.8rem'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
+                  <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
               </div>
-          )}
-          <div style={estilos.divisor}>BIBLIOTECA</div>
-          <input type="text" placeholder="🔍 Buscar canción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
-          <div style={estilos.tabs}>
-              {['Alabanza', 'Adoración'].map(t => (
-                  <button key={t} onClick={() => setFiltroTipo(t)} style={filtroTipo === t ? estilos.tabActiva : estilos.tabInactiva}>{t}</button>
+              {!planContraido && (
+                  <div style={estilos.areaPlan}>
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                          {setlist.map(c => (
+                              <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
+                                  cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
+                                  quitarDelSetlist={(id) => setSetlist(setlist.filter(x => x.id !== id))} 
+                              />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                  </div>
+              )}
+              <div style={estilos.divisor}>BIBLIOTECA</div>
+              <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+              <div style={estilos.tabs}>
+                  {['Alabanza', 'Adoración'].map(t => (
+                      <button key={t} onClick={() => setFiltroTipo(t)} style={filtroTipo === t ? estilos.tabActiva : estilos.tabInactiva}>{t}</button>
+                  ))}
+              </div>
+              {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
+                <div key={c.id} style={estilos.itemRepo}>
+                  <div style={{flex: 1}}><div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div></div>
+                  <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}`, categoria: ''}])} style={estilos.btnP}>+</button>
+                </div>
               ))}
-          </div>
-          {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
-            <div key={c.id} style={estilos.itemRepo}>
-              <div style={{flex: 1}}>
-                <div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div>
-                <div style={{fontSize: '0.65rem', color: '#888'}}>{c.artista}</div>
-              </div>
-              <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}`, categoria: ''}])} style={estilos.btnP}>+</button>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+            </>
+          )}
 
-  // --- VISTA: ENSAYO ---
-  if (pantalla === 'ensayo') {
-    return (
-      <div style={estilos.fondo}>
-        <div style={estilos.navEnsayo}>
-            <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Inicio</button>
-            <div style={{textAlign: 'right'}}>
-                <div style={{fontSize: '0.6rem', color: '#4da6ff'}}>DIRECTOR</div>
-                <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold'}}>{director || '---'}</div>
-            </div>
-        </div>
-        <div style={estilos.contenedor}>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                {setlist.map(c => (
-                    <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />
-                ))}
-              </SortableContext>
-            </DndContext>
-        </div>
-      </div>
-    );
-  }
+          {pantalla === 'ensayo' && (
+            <>
+              <div style={estilos.navEnsayo}>
+                  <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Volver</button>
+                  <div style={{textAlign: 'right'}}><div style={{fontSize: '1rem', fontWeight: 'bold'}}>{director || '---'}</div></div>
+              </div>
+              {setlist.map(c => <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />)}
+            </>
+          )}
+       </div>
+       <style>{`
+        .custom-calendar { width: 100% !important; border: none !important; color: #000 !important; background: #fff !important; border-radius: 10px; }
+        .react-calendar__tile { color: #000 !important; padding: 12px 5px !important; font-weight: bold !important; }
+        .react-calendar__navigation button { color: #000 !important; font-weight: bold !important; }
+        .react-calendar__month-view__weekdays__weekday { color: #666 !important; }
+      `}</style>
+    </div>
+  );
 }
 
 const estilos = {
-  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', padding: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  fondoInicio: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' },
-  fondoInstrumentos: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' },
-  inst: { position: 'absolute', fontSize: '5rem', opacity: 0.1, filter: 'blur(2px)' },
-  contenedorInicio: { zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '90%', maxWidth: '400px' },
-  marcoLogo: { width: '150px', height: '150px', borderRadius: '25px', overflow: 'hidden', marginBottom: '20px', border: '2px solid #4da6ff', boxShadow: '0 0 15px rgba(77,166,255,0.4)' },
+  fondoCompleto: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0 },
+  fondoGeneral: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', overflowY: 'auto' },
+  contenedorCentrado: { zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '90%', maxWidth: '400px', textAlign: 'center' },
+  contenedor: { width: '90%', maxWidth: '450px', display: 'flex', flexDirection: 'column' },
+  marcoLogo: { width: '140px', height: '140px', borderRadius: '30px', overflow: 'hidden', marginBottom: '15px', border: '2px solid #4da6ff' },
   imagenLogo: { width: '100%', height: '100%', objectFit: 'cover' },
-  tituloApp: { fontSize: '2rem', fontWeight: 'bold', color: '#4da6ff', letterSpacing: '2px', margin: '5px 0' },
-  subtituloApp: { fontSize: '0.8rem', color: '#888', marginBottom: '30px' },
+  tituloApp: { fontSize: '2.2rem', fontWeight: 'bold', color: '#4da6ff', margin: '10px 0' },
+  subtituloApp: { fontSize: '0.9rem', color: '#888', marginBottom: '40px' },
   menuGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', width: '100%' },
-  cardMenu: { background: '#111', border: '1px solid #333', borderRadius: '15px', padding: '20px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', cursor: 'pointer' },
-  iconCard: { fontSize: '1.8rem' },
-  textCard: { fontSize: '0.75rem', fontWeight: 'bold', color: '#ddd' },
-  btnAtras: { alignSelf: 'flex-start', background: '#222', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '8px', marginBottom: '10px', fontSize: '0.8rem' },
-  contenedor: { maxWidth: '450px', width: '100%' },
-  logo: { color: '#4da6ff', marginBottom: '15px', textAlign: 'center' },
-  cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px' },
-  inputDir: { width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '2px solid #3b82f6', background: '#f0f0f0', color: '#000', textAlign: 'center', fontWeight: 'bold' },
-  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' },
-  btnMiniG: { background: '#10b981', color: 'white', padding: '8px 12px', borderRadius: '8px', border: 'none', fontWeight: 'bold' },
-  btnBorrar: { background: '#441111', color: '#ff4d4d', border: 'none', padding: '8px 10px', borderRadius: '8px' },
-  areaPlan: { background: '#0a0a0a', padding: '10px', borderRadius: '12px' },
-  headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
-  headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0' },
-  infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
-  tag: { background: '#4da6ff', color: '#000', padding: '1px 4px', borderRadius: '3px', fontSize: '0.55rem', fontWeight: 'bold' },
-  miniSelect: { background: '#222', color: '#fff', border: '1px solid #444', fontSize: '0.65rem', padding: '4px', borderRadius: '5px' },
-  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.2rem' },
-  contenido: { padding: '15px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 8px 8px' },
+  cardMenu: { background: '#111', border: '1px solid #333', borderRadius: '20px', padding: '25px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', cursor: 'pointer' },
+  iconCard: { fontSize: '2rem' },
+  textCard: { fontSize: '0.85rem', fontWeight: 'bold', color: '#ddd' },
+  fondoInstrumentos: { position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none' },
+  inst: { position: 'absolute', fontSize: '5rem', opacity: 0.1, filter: 'blur(2px)' },
+  btnAtras: { alignSelf: 'flex-start', background: '#222', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '10px', marginBottom: '20px' },
+  logo: { color: '#4da6ff', marginBottom: '20px', textAlign: 'center' },
+  cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '20px', width: '100%', boxSizing: 'border-box' },
+  inputDir: { width: '100%', padding: '14px', marginTop: '10px', borderRadius: '10px', border: '2px solid #3b82f6', background: '#f0f0f0', color: '#000', fontWeight: 'bold', textAlign: 'center', boxSizing: 'border-box' },
+  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
+  btnMiniG: { background: '#10b981', color: 'white', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 'bold' },
+  areaPlan: { background: '#0a0a0a', padding: '15px', borderRadius: '15px', marginBottom: '20px' },
+  headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#161616', borderRadius: '10px', marginBottom: '5px' },
+  headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#1e3a8a', borderRadius: '10px 10px 0 0' },
+  infoCuerpo: { display: 'flex', alignItems: 'center', gap: '12px', flex: 1 },
+  tag: { background: '#4da6ff', color: '#000', padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 'bold' },
+  miniSelect: { background: '#222', color: '#fff', border: '1px solid #444', fontSize: '0.7rem', padding: '5px', borderRadius: '5px' },
+  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
+  contenido: { padding: '20px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 10px 10px' },
   controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
-  grupoControl: { display: 'flex', alignItems: 'center', gap: '8px', background: '#111', padding: '6px 10px', borderRadius: '8px' },
-  btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '6px 12px', borderRadius: '6px' },
-  letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.6' },
-  divisor: { margin: '20px 0 10px', color: '#4da6ff', textAlign: 'center', fontSize: '0.8rem' },
-  search: { width: '100%', padding: '12px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '10px', boxSizing: 'border-box' },
-  tabs: { display: 'flex', gap: '8px', marginBottom: '15px' },
-  tabActiva: { flex: 1, padding: '10px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '10px' },
-  tabInactiva: { flex: 1, padding: '10px', background: '#111', color: '#555', border: '1px solid #333', borderRadius: '10px' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#111', borderRadius: '10px', marginBottom: '8px' },
-  btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  btnEnsayo: { width: '100%', padding: '15px', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 'bold' },
-  navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', width: '100%', borderBottom: '1px solid #333' },
-  btnRegresar: { background: '#222', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px' },
-  cajaBiblia: { marginBottom: '20px' }
+  grupoControl: { display: 'flex', alignItems: 'center', gap: '10px', background: '#111', padding: '8px', borderRadius: '10px' },
+  btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '8px 15px', borderRadius: '8px' },
+  letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.8' },
+  divisor: { margin: '25px 0 15px', color: '#4da6ff', textAlign: 'center', fontWeight: 'bold' },
+  search: { width: '100%', padding: '15px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '12px', marginBottom: '15px', boxSizing: 'border-box' },
+  tabs: { display: 'flex', gap: '10px', marginBottom: '20px' },
+  tabActiva: { flex: 1, padding: '12px', background: '#4da6ff', color: '#000', fontWeight: 'bold', borderRadius: '12px', border: 'none' },
+  tabInactiva: { flex: 1, padding: '12px', background: '#111', color: '#555', borderRadius: '12px', border: '1px solid #333' },
+  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#111', borderRadius: '12px', marginBottom: '10px' },
+  btnP: { background: '#3b82f6', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', border: 'none', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  btnAccion: { width: '100%', padding: '15px', background: '#3b82f6', borderRadius: '12px', color: '#fff', fontWeight: 'bold', border: 'none', marginBottom: '20px' },
+  navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '20px', borderBottom: '1px solid #333', marginBottom: '20px' },
+  btnRegresar: { background: '#222', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '10px' }
 }
