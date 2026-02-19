@@ -102,19 +102,22 @@ export default function App() {
   const [filtroTipo, setFiltroTipo] = useState('Alabanza');
   const [planContraido, setPlanContraido] = useState(false);
 
-  // Biblia
+  // Estados para Biblia
   const [citaBiblica, setCitaBiblica] = useState('');
   const [textoBiblico, setTextoBiblico] = useState('');
   const [cargandoBiblia, setCargandoBiblia] = useState(false);
 
+  // RESTRICCIÓN DE 2 SEGUNDOS PARA EL MOVIMIENTO (SOLO TOUCH)
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 2000, tolerance: 15 } })
+    useSensor(TouchSensor, { 
+      activationConstraint: { delay: 2000, tolerance: 15 } 
+    })
   );
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active.id !== over?.id) {
+    if (active && over && active.id !== over.id) {
       setSetlist((items) => {
         const oldIndex = items.findIndex((i) => i.id === active.id);
         const newIndex = items.findIndex((i) => i.id === over.id);
@@ -158,17 +161,28 @@ export default function App() {
   const buscarBiblia = async () => {
     if (!citaBiblica) return;
     setCargandoBiblia(true);
+    setTextoBiblico("");
     try {
-      const res = await fetch(`https://bible-api.com/${citaBiblica}?translation=rvr09`);
+      // Usamos una URL de respaldo si la principal falla
+      const query = encodeURIComponent(citaBiblica);
+      const res = await fetch(`https://bible-api.com/${query}?translation=rvr09`);
       const data = await res.json();
-      if (data.text) setTextoBiblico(data.text);
-      else alert("No se encontró la cita.");
-    } catch (e) { alert("Error al conectar con la Biblia"); }
+      if (data.text) {
+        setTextoBiblico(data.text);
+      } else {
+        alert("Cita no encontrada. Ejemplo: 'Juan 3:16' o 'Salmos 23'");
+      }
+    } catch (e) {
+      alert("Error de conexión. Verifica tu internet.");
+    }
     setCargandoBiblia(false);
   };
 
   // --- VISTA: INICIO ---
   if (pantalla === 'inicio') {
+    // ENLACE RAW DE GITHUB PARA QUE FUNCIONE EL LOGO
+    const urlLogoGitHub = "https://raw.githubusercontent.com/JC100HN/ODRE-NUEVO/main/src/assets/logo%20odre%20nuevo.png";
+
     return (
       <div style={estilos.fondoCompleto}>
         <div style={estilos.fondoInstrumentos}>
@@ -180,8 +194,7 @@ export default function App() {
 
         <div style={estilos.contenedorCentrado}>
           <div style={estilos.marcoLogo}>
-             {/* Cambia la URL por el nombre del archivo si lo pones en la carpeta public */}
-             <img src="/logo.png" alt="Logo" style={estilos.imagenLogo} onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=ODRE+NUEVO'} />
+             <img src={urlLogoGitHub} alt="Logo" style={estilos.imagenLogo} onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=ODRE+NUEVO'} />
           </div>
           <h1 style={estilos.tituloApp}>ODRE NUEVO</h1>
           <p style={estilos.subtituloApp}>Alabanza y Adoración</p>
@@ -217,9 +230,17 @@ export default function App() {
             <>
               <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
               <h2 style={estilos.logo}>Lectura Bíblica</h2>
-              <input type="text" placeholder="Ej: Juan 3:16" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={estilos.search} />
-              <button onClick={buscarBiblia} style={estilos.btnAccion}>{cargandoBiblia ? "Buscando..." : "Buscar Versículo"}</button>
-              {textoBiblico && <div style={estilos.areaPlan}><p style={{lineHeight: '1.6'}}>{textoBiblico}</p></div>}
+              <p style={{fontSize: '0.7rem', color:'#888', marginBottom:'10px'}}>Escribe el libro, capítulo y verso (Ej: Juan 3:16)</p>
+              <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
+                  <input type="text" placeholder="Ej: Salmos 23" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={{...estilos.search, marginBottom:0}} />
+                  <button onClick={buscarBiblia} style={{...estilos.btnP, borderRadius:'10px', width:'60px'}}>🔍</button>
+              </div>
+              {cargandoBiblia && <p style={{textAlign:'center'}}>Cargando palabra de Dios...</p>}
+              {textoBiblico && (
+                <div style={estilos.areaPlan}>
+                    <p style={{lineHeight: '1.8', fontSize: '1.1rem', color: '#fff', whiteSpace: 'pre-wrap'}}>{textoBiblico}</p>
+                </div>
+              )}
             </>
           )}
 
@@ -250,7 +271,7 @@ export default function App() {
                   </div>
               )}
               <div style={estilos.divisor}>BIBLIOTECA</div>
-              <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+              <input type="text" placeholder="🔍 Buscar canción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
               <div style={estilos.tabs}>
                   {['Alabanza', 'Adoración'].map(t => (
                       <button key={t} onClick={() => setFiltroTipo(t)} style={filtroTipo === t ? estilos.tabActiva : estilos.tabInactiva}>{t}</button>
@@ -259,7 +280,7 @@ export default function App() {
               {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
                 <div key={c.id} style={estilos.itemRepo}>
                   <div style={{flex: 1}}><div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div></div>
-                  <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}`, categoria: ''}])} style={estilos.btnP}>+</button>
+                  <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}`, categoria: ''}])} style={estilos.btnP}>+</button>
                 </div>
               ))}
             </>
@@ -268,7 +289,7 @@ export default function App() {
           {pantalla === 'ensayo' && (
             <>
               <div style={estilos.navEnsayo}>
-                  <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Volver</button>
+                  <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Inicio</button>
                   <div style={{textAlign: 'right'}}><div style={{fontSize: '1rem', fontWeight: 'bold'}}>{director || '---'}</div></div>
               </div>
               {setlist.map(c => <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />)}
@@ -290,7 +311,7 @@ const estilos = {
   fondoGeneral: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', overflowY: 'auto' },
   contenedorCentrado: { zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '90%', maxWidth: '400px', textAlign: 'center' },
   contenedor: { width: '90%', maxWidth: '450px', display: 'flex', flexDirection: 'column' },
-  marcoLogo: { width: '140px', height: '140px', borderRadius: '30px', overflow: 'hidden', marginBottom: '15px', border: '2px solid #4da6ff' },
+  marcoLogo: { width: '140px', height: '140px', borderRadius: '30px', overflow: 'hidden', marginBottom: '15px', border: '2px solid #4da6ff', background: '#111' },
   imagenLogo: { width: '100%', height: '100%', objectFit: 'cover' },
   tituloApp: { fontSize: '2.2rem', fontWeight: 'bold', color: '#4da6ff', margin: '10px 0' },
   subtituloApp: { fontSize: '0.9rem', color: '#888', marginBottom: '40px' },
@@ -325,7 +346,6 @@ const estilos = {
   tabInactiva: { flex: 1, padding: '12px', background: '#111', color: '#555', borderRadius: '12px', border: '1px solid #333' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#111', borderRadius: '12px', marginBottom: '10px' },
   btnP: { background: '#3b82f6', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', border: 'none', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  btnAccion: { width: '100%', padding: '15px', background: '#3b82f6', borderRadius: '12px', color: '#fff', fontWeight: 'bold', border: 'none', marginBottom: '20px' },
   navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '20px', borderBottom: '1px solid #333', marginBottom: '20px' },
   btnRegresar: { background: '#222', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '10px' }
 }
