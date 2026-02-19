@@ -28,7 +28,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
     opacity: isDragging ? 0.6 : 1,
     scale: isDragging ? '1.02' : '1',
     marginBottom: '8px',
-    borderRadius: '8px',
+    borderRadius: '12px',
     border: isDragging ? '2px solid #4da6ff' : '1px solid #333',
     backgroundColor: '#111',
     width: '100%',
@@ -42,17 +42,15 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
         style={estaAbierta ? estilos.headerActivo : estilos.headerNormal} 
         {...attributes} 
         {...listeners}
-        onClick={(e) => {
-          if (!isDragging) setCancionAbierta(estaAbierta ? null : c.id);
-        }}
+        onClick={(e) => { if (!isDragging) setCancionAbierta(estaAbierta ? null : c.id); }}
       >
         <div style={estilos.infoCuerpo}>
           {!modoLectura && <span style={estilos.manubrio}>☰</span>}
           <div style={{flex: 1}}>
-                <div style={{fontSize: '0.85rem', color: '#fff', fontWeight: 'bold'}}>
+                <div style={{fontSize: '0.9rem', color: '#fff', fontWeight: 'bold'}}>
                     {c.categoria && <span style={estilos.tag}>{c.categoria}</span>} {c.titulo} 
                 </div>
-                <div style={{fontSize: '0.7rem', color: '#4da6ff'}}>
+                <div style={{fontSize: '0.75rem', color: '#4da6ff'}}>
                     Tono: {transponerIndividual(c.tono || c.key, misSemitonos)}
                 </div>
           </div>
@@ -72,7 +70,7 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
           <div style={estilos.controlesLetra} onClick={(e) => e.stopPropagation()}>
             <div style={estilos.grupoControl}>
                 <button onClick={() => setMisSemitonos(s => s - 1)} style={estilos.btnT}>-</button>
-                <span style={{color: '#fff', fontSize:'0.8rem', minWidth:'20px', textAlign:'center'}}>{misSemitonos}</span>
+                <span style={{color: '#fff', fontSize:'0.9rem', minWidth:'25px', textAlign:'center'}}>{misSemitonos}</span>
                 <button onClick={() => setMisSemitonos(s => s + 1)} style={estilos.btnT}>+</button>
             </div>
             <div style={estilos.grupoControl}>
@@ -102,17 +100,13 @@ export default function App() {
   const [filtroTipo, setFiltroTipo] = useState('Alabanza');
   const [planContraido, setPlanContraido] = useState(false);
 
-  // Estados para Biblia
   const [citaBiblica, setCitaBiblica] = useState('');
   const [textoBiblico, setTextoBiblico] = useState('');
   const [cargandoBiblia, setCargandoBiblia] = useState(false);
 
-  // RESTRICCIÓN DE 2 SEGUNDOS PARA EL MOVIMIENTO (SOLO TOUCH)
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
-    useSensor(TouchSensor, { 
-      activationConstraint: { delay: 2000, tolerance: 15 } 
-    })
+    useSensor(TouchSensor, { activationConstraint: { delay: 2000, tolerance: 15 } })
   );
 
   const handleDragEnd = (event) => {
@@ -138,7 +132,7 @@ export default function App() {
     const cargarPlan = async () => {
       const fechaISO = fecha.toISOString().split('T')[0];
       const { data } = await supabase.from('planes_culto').select('*').eq('fecha', fechaISO).maybeSingle();
-      if (data && data.canciones && data.canciones.length > 0) {
+      if (data && data.canciones) {
         setDirector(data.director || "");
         setSetlist(data.canciones);
         setExistePlan(true);
@@ -158,64 +152,55 @@ export default function App() {
     else { alert("✅ Sincronizado"); setExistePlan(true); }
   };
 
+  const borrarPlan = async () => {
+    if (window.confirm("¿Estás seguro de borrar todo el plan de este día?")) {
+        const fechaISO = fecha.toISOString().split('T')[0];
+        const { error } = await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
+        if (!error) { setSetlist([]); setDirector(""); setExistePlan(false); alert("🗑️ Plan eliminado"); }
+    }
+  };
+
+  const enviarWhatsApp = () => {
+    let mensaje = `*PLAN DE CULTO - ${fecha.toLocaleDateString()}*\n*Director:* ${director || 'No asignado'}\n\n`;
+    setlist.forEach((c, i) => { mensaje += `${i+1}. ${c.categoria ? '['+c.categoria+'] ' : ''}${c.titulo} (${c.tono || c.key})\n`; });
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+  };
+
   const buscarBiblia = async () => {
     if (!citaBiblica) return;
     setCargandoBiblia(true);
     setTextoBiblico("");
     try {
-      // Usamos una URL de respaldo si la principal falla
-      const query = encodeURIComponent(citaBiblica);
-      const res = await fetch(`https://bible-api.com/${query}?translation=rvr09`);
+      const res = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
       const data = await res.json();
-      if (data.text) {
-        setTextoBiblico(data.text);
-      } else {
-        alert("Cita no encontrada. Ejemplo: 'Juan 3:16' o 'Salmos 23'");
-      }
-    } catch (e) {
-      alert("Error de conexión. Verifica tu internet.");
-    }
+      if (data.text) setTextoBiblico(data.text);
+      else alert("No se encontró la cita. Intenta con: Juan 3:16");
+    } catch (e) { alert("Error de conexión con la Biblia."); }
     setCargandoBiblia(false);
   };
 
   // --- VISTA: INICIO ---
   if (pantalla === 'inicio') {
-    // ENLACE RAW DE GITHUB PARA QUE FUNCIONE EL LOGO
     const urlLogoGitHub = "https://raw.githubusercontent.com/JC100HN/ODRE-NUEVO/main/src/assets/logo%20odre%20nuevo.png";
-
     return (
-      <div style={estilos.fondoCompleto}>
-        <div style={estilos.fondoInstrumentos}>
-          <span style={{...estilos.inst, top:'10%', left:'5%'}}>🎸</span>
-          <span style={{...estilos.inst, top:'20%', right:'10%'}}>🎹</span>
-          <span style={{...estilos.inst, bottom:'15%', left:'15%'}}>🥁</span>
-          <span style={{...estilos.inst, bottom:'25%', right:'5%'}}>🎷</span>
+      <div style={estilos.fondoInicioAnimado}>
+        <div style={estilos.capaInstrumentos}>
+          <span style={{...estilos.instFlotante, top:'5%', left:'10%', color:'#4da6ff'}}>🎸</span>
+          <span style={{...estilos.instFlotante, top:'15%', right:'15%', color:'#ff4d4d'}}>🎹</span>
+          <span style={{...estilos.instFlotante, bottom:'20%', left:'5%', color:'#10b981'}}>🥁</span>
+          <span style={{...estilos.instFlotante, bottom:'10%', right:'10%', color:'#f59e0b'}}>🎷</span>
         </div>
-
         <div style={estilos.contenedorCentrado}>
           <div style={estilos.marcoLogo}>
              <img src={urlLogoGitHub} alt="Logo" style={estilos.imagenLogo} onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=ODRE+NUEVO'} />
           </div>
           <h1 style={estilos.tituloApp}>ODRE NUEVO</h1>
-          <p style={estilos.subtituloApp}>Alabanza y Adoración</p>
-          
+          <p style={estilos.subtituloApp}>Ministerio de Alabanza</p>
           <div style={estilos.menuGrid}>
-            <button style={estilos.cardMenu} onClick={() => setPantalla('preparar')}>
-              <span style={estilos.iconCard}>📝</span>
-              <span style={estilos.textCard}>Preparar Culto</span>
-            </button>
-            <button style={estilos.cardMenu} onClick={() => setPantalla('ensayo')}>
-              <span style={estilos.iconCard}>📖</span>
-              <span style={estilos.textCard}>Empezar Culto</span>
-            </button>
-            <button style={estilos.cardMenu} onClick={() => setPantalla('biblia')}>
-              <span style={estilos.iconCard}>📜</span>
-              <span style={estilos.textCard}>Lectura Bíblica</span>
-            </button>
-            <button style={estilos.cardMenu} onClick={() => alert("Próximamente...")}>
-              <span style={estilos.iconCard}>⚙️</span>
-              <span style={estilos.textCard}>Ajustes</span>
-            </button>
+            <button style={estilos.cardMenu} onClick={() => setPantalla('preparar')}><span>📝</span><b>Preparar</b></button>
+            <button style={estilos.cardMenu} onClick={() => setPantalla('ensayo')}><span>📖</span><b>Culto</b></button>
+            <button style={estilos.cardMenu} onClick={() => setPantalla('biblia')}><span>📜</span><b>Biblia</b></button>
+            <button style={estilos.cardMenu} onClick={() => alert("Próximamente")}><span>⚙️</span><b>Ajustes</b></button>
           </div>
         </div>
       </div>
@@ -229,32 +214,32 @@ export default function App() {
           {pantalla === 'biblia' && (
             <>
               <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
-              <h2 style={estilos.logo}>Lectura Bíblica</h2>
-              <p style={{fontSize: '0.7rem', color:'#888', marginBottom:'10px'}}>Escribe el libro, capítulo y verso (Ej: Juan 3:16)</p>
-              <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
-                  <input type="text" placeholder="Ej: Salmos 23" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={{...estilos.search, marginBottom:0}} />
-                  <button onClick={buscarBiblia} style={{...estilos.btnP, borderRadius:'10px', width:'60px'}}>🔍</button>
+              <h2 style={estilos.logo}>Biblia Reina Valera</h2>
+              <div style={{display:'flex', gap:'8px', marginBottom:'15px'}}>
+                  <input type="text" placeholder="Ej: Juan 3:16" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={{...estilos.search, marginBottom:0}} />
+                  <button onClick={buscarBiblia} style={estilos.btnP}>🔍</button>
               </div>
-              {cargandoBiblia && <p style={{textAlign:'center'}}>Cargando palabra de Dios...</p>}
-              {textoBiblico && (
-                <div style={estilos.areaPlan}>
-                    <p style={{lineHeight: '1.8', fontSize: '1.1rem', color: '#fff', whiteSpace: 'pre-wrap'}}>{textoBiblico}</p>
-                </div>
-              )}
+              {cargandoBiblia && <p style={{textAlign:'center', color:'#4da6ff'}}>Buscando en las escrituras...</p>}
+              {textoBiblico && <div style={estilos.areaPlan}><p style={{lineHeight:'1.8', fontSize:'1.1rem', whiteSpace:'pre-wrap'}}>{textoBiblico}</p></div>}
             </>
           )}
 
           {pantalla === 'preparar' && (
             <>
-              <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
-              <h2 style={estilos.logo}>Preparar Culto</h2>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+                  <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
+                  <div style={{display:'flex', gap:'10px'}}>
+                      <button onClick={enviarWhatsApp} style={estilos.btnWA}>WhatsApp</button>
+                      <button onClick={borrarPlan} style={estilos.btnBorrar}>Borrar</button>
+                  </div>
+              </div>
               <div style={estilos.cajaCalendario}>
                   <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
                   <input type="text" placeholder="¿Quién dirige?" value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
               </div>
               <div style={estilos.headerPlan}>
-                  <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer', fontSize:'0.8rem'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
-                  <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
+                  <h4 onClick={() => setPlanContraido(!planContraido)} style={{cursor:'pointer'}}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
+                  <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR PLAN</button>
               </div>
               {!planContraido && (
                   <div style={estilos.areaPlan}>
@@ -270,8 +255,8 @@ export default function App() {
                       </DndContext>
                   </div>
               )}
-              <div style={estilos.divisor}>BIBLIOTECA</div>
-              <input type="text" placeholder="🔍 Buscar canción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+              <div style={estilos.divisor}>BIBLIOTECA DE CANCIONES</div>
+              <input type="text" placeholder="🔍 Buscar por título..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
               <div style={estilos.tabs}>
                   {['Alabanza', 'Adoración'].map(t => (
                       <button key={t} onClick={() => setFiltroTipo(t)} style={filtroTipo === t ? estilos.tabActiva : estilos.tabInactiva}>{t}</button>
@@ -279,7 +264,7 @@ export default function App() {
               </div>
               {canciones.filter(c => (c.titulo).toLowerCase().includes(busqueda.toLowerCase())).filter(c => (c.tipo || 'Alabanza') === filtroTipo).map(c => (
                 <div key={c.id} style={estilos.itemRepo}>
-                  <div style={{flex: 1}}><div style={{fontSize: '0.85rem', fontWeight: 'bold'}}>{c.titulo}</div></div>
+                  <div style={{flex: 1}}><div style={{fontSize: '0.9rem', fontWeight: 'bold'}}>{c.titulo}</div></div>
                   <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}`, categoria: ''}])} style={estilos.btnP}>+</button>
                 </div>
               ))}
@@ -290,62 +275,61 @@ export default function App() {
             <>
               <div style={estilos.navEnsayo}>
                   <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Inicio</button>
-                  <div style={{textAlign: 'right'}}><div style={{fontSize: '1rem', fontWeight: 'bold'}}>{director || '---'}</div></div>
+                  <div style={{textAlign: 'right'}}><div style={{fontSize: '1rem', fontWeight: 'bold'}}>{director || 'Sin director'}</div></div>
               </div>
-              {setlist.map(c => <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />)}
+              {setlist.length === 0 ? <p style={{textAlign:'center', marginTop:'50px'}}>No hay canciones para hoy.</p> : 
+               setlist.map(c => <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />)}
             </>
           )}
        </div>
        <style>{`
-        .custom-calendar { width: 100% !important; border: none !important; color: #000 !important; background: #fff !important; border-radius: 10px; }
-        .react-calendar__tile { color: #000 !important; padding: 12px 5px !important; font-weight: bold !important; }
-        .react-calendar__navigation button { color: #000 !important; font-weight: bold !important; }
-        .react-calendar__month-view__weekdays__weekday { color: #666 !important; }
+        .custom-calendar { width: 100% !important; border: none !important; color: #000 !important; font-family: sans-serif; border-radius: 12px; }
+        .react-calendar__tile { color: #000 !important; font-weight: bold !important; padding: 10px !important; }
+        .react-calendar__tile--now { background: #4da6ff !important; color: white !important; border-radius: 5px; }
       `}</style>
     </div>
   );
 }
 
 const estilos = {
-  fondoCompleto: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0 },
-  fondoGeneral: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', overflowY: 'auto' },
-  contenedorCentrado: { zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '90%', maxWidth: '400px', textAlign: 'center' },
-  contenedor: { width: '90%', maxWidth: '450px', display: 'flex', flexDirection: 'column' },
-  marcoLogo: { width: '140px', height: '140px', borderRadius: '30px', overflow: 'hidden', marginBottom: '15px', border: '2px solid #4da6ff', background: '#111' },
+  fondoInicioAnimado: { 
+    background: 'linear-gradient(135deg, #000000 0%, #0a192f 100%)',
+    color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0 
+  },
+  capaInstrumentos: { position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' },
+  instFlotante: { position: 'absolute', fontSize: '6rem', opacity: 0.15, filter: 'blur(3px)' },
+  contenedorCentrado: { zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '85%', maxWidth: '400px' },
+  marcoLogo: { width: '160px', height: '160px', borderRadius: '40px', overflow: 'hidden', marginBottom: '20px', border: '3px solid #4da6ff', boxShadow: '0 0 30px rgba(77,166,255,0.4)' },
   imagenLogo: { width: '100%', height: '100%', objectFit: 'cover' },
-  tituloApp: { fontSize: '2.2rem', fontWeight: 'bold', color: '#4da6ff', margin: '10px 0' },
-  subtituloApp: { fontSize: '0.9rem', color: '#888', marginBottom: '40px' },
-  menuGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', width: '100%' },
-  cardMenu: { background: '#111', border: '1px solid #333', borderRadius: '20px', padding: '25px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', cursor: 'pointer' },
-  iconCard: { fontSize: '2rem' },
-  textCard: { fontSize: '0.85rem', fontWeight: 'bold', color: '#ddd' },
-  fondoInstrumentos: { position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none' },
-  inst: { position: 'absolute', fontSize: '5rem', opacity: 0.1, filter: 'blur(2px)' },
-  btnAtras: { alignSelf: 'flex-start', background: '#222', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '10px', marginBottom: '20px' },
-  logo: { color: '#4da6ff', marginBottom: '20px', textAlign: 'center' },
-  cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '20px', width: '100%', boxSizing: 'border-box' },
-  inputDir: { width: '100%', padding: '14px', marginTop: '10px', borderRadius: '10px', border: '2px solid #3b82f6', background: '#f0f0f0', color: '#000', fontWeight: 'bold', textAlign: 'center', boxSizing: 'border-box' },
-  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
-  btnMiniG: { background: '#10b981', color: 'white', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 'bold' },
-  areaPlan: { background: '#0a0a0a', padding: '15px', borderRadius: '15px', marginBottom: '20px' },
-  headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#161616', borderRadius: '10px', marginBottom: '5px' },
-  headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#1e3a8a', borderRadius: '10px 10px 0 0' },
-  infoCuerpo: { display: 'flex', alignItems: 'center', gap: '12px', flex: 1 },
-  tag: { background: '#4da6ff', color: '#000', padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 'bold' },
-  miniSelect: { background: '#222', color: '#fff', border: '1px solid #444', fontSize: '0.7rem', padding: '5px', borderRadius: '5px' },
-  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.4rem' },
-  contenido: { padding: '20px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 10px 10px' },
-  controlesLetra: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px' },
-  grupoControl: { display: 'flex', alignItems: 'center', gap: '10px', background: '#111', padding: '8px', borderRadius: '10px' },
-  btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '8px 15px', borderRadius: '8px' },
-  letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.8' },
-  divisor: { margin: '25px 0 15px', color: '#4da6ff', textAlign: 'center', fontWeight: 'bold' },
-  search: { width: '100%', padding: '15px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '12px', marginBottom: '15px', boxSizing: 'border-box' },
+  tituloApp: { fontSize: '2.5rem', fontWeight: '900', color: '#fff', textShadow: '0 0 10px #4da6ff', margin: '5px 0' },
+  subtituloApp: { fontSize: '1rem', color: '#4da6ff', marginBottom: '40px', letterSpacing: '2px' },
+  menuGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', width: '100%' },
+  cardMenu: { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '25px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', color: '#fff', cursor: 'pointer', transition: '0.3s' },
+  fondoGeneral: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', overflowY: 'auto' },
+  contenedor: { width: '92%', maxWidth: '450px' },
+  btnAtras: { background: '#222', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '10px' },
+  btnWA: { background: '#25D366', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '10px', fontWeight: 'bold', fontSize:'0.8rem' },
+  btnBorrar: { background: '#ff4d4d', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '10px', fontWeight: 'bold', fontSize:'0.8rem' },
+  logo: { color: '#4da6ff', margin: '15px 0', textAlign: 'center' },
+  cajaCalendario: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '20px' },
+  inputDir: { width: '100%', padding: '14px', marginTop: '10px', borderRadius: '12px', border: '2px solid #3b82f6', background: '#f8fafc', color: '#000', fontWeight: 'bold', textAlign: 'center' },
+  headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', color:'#4da6ff' },
+  btnMiniG: { background: '#10b981', color: 'white', padding: '10px 15px', borderRadius: '10px', border: 'none', fontWeight: 'bold', fontSize:'0.8rem' },
+  areaPlan: { background: '#0a0a0a', padding: '12px', borderRadius: '15px', marginBottom: '20px', border:'1px solid #222' },
+  headerNormal: { display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#161616', borderRadius: '12px', marginBottom: '6px' },
+  headerActivo: { display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#1e3a8a', borderRadius: '12px 12px 0 0' },
+  tag: { background: '#4da6ff', color: '#000', padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 'bold', marginRight:'8px' },
+  miniSelect: { background: '#222', color: '#fff', border: '1px solid #444', fontSize: '0.75rem', padding: '6px', borderRadius: '8px' },
+  btnX: { background: 'none', border: 'none', color: '#ff4d4d', fontSize: '1.5rem' },
+  contenido: { padding: '20px', background: '#050505', border: '1px solid #1e3a8a', borderRadius: '0 0 12px 12px' },
+  letraPre: { whiteSpace: 'pre-wrap', color: '#eee', fontFamily: 'monospace', lineHeight: '1.8' },
+  divisor: { margin: '25px 0 15px', color: '#4da6ff', textAlign: 'center', fontWeight: 'bold', fontSize:'0.8rem', letterSpacing:'1px' },
+  search: { width: '100%', padding: '16px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '15px', marginBottom: '15px', boxSizing: 'border-box' },
   tabs: { display: 'flex', gap: '10px', marginBottom: '20px' },
-  tabActiva: { flex: 1, padding: '12px', background: '#4da6ff', color: '#000', fontWeight: 'bold', borderRadius: '12px', border: 'none' },
-  tabInactiva: { flex: 1, padding: '12px', background: '#111', color: '#555', borderRadius: '12px', border: '1px solid #333' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#111', borderRadius: '12px', marginBottom: '10px' },
-  btnP: { background: '#3b82f6', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', border: 'none', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  tabActiva: { flex: 1, padding: '14px', background: '#4da6ff', color: '#000', fontWeight: 'bold', borderRadius: '15px', border: 'none' },
+  tabInactiva: { flex: 1, padding: '14px', background: '#111', color: '#666', borderRadius: '15px', border: '1px solid #333' },
+  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#111', borderRadius: '15px', marginBottom: '10px' },
+  btnP: { background: '#3b82f6', color: '#fff', width: '45px', height: '45px', borderRadius: '50%', border: 'none', fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   navEnsayo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '20px', borderBottom: '1px solid #333', marginBottom: '20px' },
   btnRegresar: { background: '#222', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '10px' }
 }
