@@ -5,7 +5,7 @@ import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 
 import { DndContext, closestCenter, TouchSensor, MouseSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@nd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
 // --- COMPONENTE: ITEM DE CANCIÓN ---
@@ -44,13 +44,13 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
         onClick={(e) => { if (!isDragging) setCancionAbierta(estaAbierta ? null : c.id); }}
       >
         <div style={{display:'flex', alignItems:'center', flex:1}}>
-          {!modoLectura && <span style={{marginRight:'10px', color:'#444'}}>☰</span>}
+          {!modoLectura && <span style={{marginRight:'10px', color:'#555'}}>☰</span>}
           <div style={{flex: 1}}>
                 <div style={{fontSize: '0.9rem', color: '#fff', fontWeight: 'bold'}}>
                     {c.categoria && <span style={estilos.tag}>{c.categoria}</span>} {c.titulo} 
                 </div>
                 <div style={{fontSize: '0.75rem', color: '#4da6ff'}}>
-                    Tono: {transponerIndividual(c.tono || c.key, misSemitonos)} | <span style={{color:'#aaa'}}>{c.cantante || 'Cantante'}</span>
+                    Tono: {transponerIndividual(c.tono || c.key, misSemitonos)} {c.cantante ? `| ${c.cantante}` : ''}
                 </div>
           </div>
         </div>
@@ -97,7 +97,6 @@ export default function App() {
   const [planContraido, setPlanContraido] = useState(false);
   const [citaBiblica, setCitaBiblica] = useState('');
   const [textoBiblico, setTextoBiblico] = useState('');
-  const [cargandoBiblia, setCargandoBiblia] = useState(false);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
@@ -118,7 +117,7 @@ export default function App() {
   useEffect(() => {
     const cargarBiblioteca = async () => {
       const { data } = await supabase.from('CANCIONES').select('*').order('titulo', { ascending: true });
-      if (data) setCanciones(data.map((c, i) => ({ ...c, id: c.id || `lib-${i}` })));
+      if (data) setCanciones(data);
     };
     cargarBiblioteca();
   }, []);
@@ -139,38 +138,45 @@ export default function App() {
 
   const guardarPlan = async () => {
     const fechaISO = fecha.toISOString().split('T')[0];
-    await supabase.from('planes_culto').upsert({ 
+    const { error } = await supabase.from('planes_culto').upsert({ 
       fecha: fechaISO, director: director, canciones: setlist 
     }, { onConflict: 'fecha' });
-    alert("✅ Plan Guardado");
+    if (error) alert("Error: " + error.message);
+    else alert("✅ Plan Guardado");
   };
 
   const borrarPlan = async () => {
-    if (window.confirm("¿Borrar el plan de hoy?")) {
+    if (window.confirm("¿Seguro que deseas borrar el plan completo?")) {
         const fechaISO = fecha.toISOString().split('T')[0];
         await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
         setSetlist([]); setDirector("");
+        alert("Plan eliminado.");
     }
   };
 
   const enviarWhatsApp = () => {
     let mensaje = `*ITED MONTE ALEGRE*\n*PLAN: ${fecha.toLocaleDateString()}*\n*Dirige:* ${director || '---'}\n\n`;
-    setlist.forEach((c, i) => { 
-        mensaje += `${i+1}. ${c.titulo} (${c.tono || c.key}) - ${c.cantante || ''}\n`; 
+    
+    const categorias = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
+    categorias.forEach(cat => {
+        const filtradas = setlist.filter(c => c.categoria === cat);
+        if (filtradas.length > 0) {
+            mensaje += `*--- ${cat.toUpperCase()} ---*\n`;
+            filtradas.forEach(c => {
+                mensaje += `• ${c.titulo} (${c.tono || c.key}) ${c.cantante ? '- ' + c.cantante : ''}\n`;
+            });
+            mensaje += `\n`;
+        }
     });
-    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
-  };
 
-  const buscarBiblia = async () => {
-    if (!citaBiblica) return;
-    setCargandoBiblia(true);
-    try {
-      const res = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
-      const data = await res.json();
-      if (data.text) setTextoBiblico(data.text);
-      else alert("Cita no encontrada");
-    } catch (e) { alert("Error de conexión"); }
-    setCargandoBiblia(false);
+    // Canciones sin categoría
+    const sinCat = setlist.filter(c => !c.categoria);
+    if (sinCat.length > 0) {
+        mensaje += `*OTRAS*\n`;
+        sinCat.forEach(c => { mensaje += `• ${c.titulo} (${c.tono || c.key})\n`; });
+    }
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
   if (pantalla === 'inicio') {
@@ -203,7 +209,7 @@ export default function App() {
   return (
     <div style={estilos.fondoGeneral}>
        <div style={estilos.contenedorPrincipal}>
-          <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px'}}>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', width:'100%'}}>
               <button onClick={() => setPantalla('inicio')} style={estilos.btnAtras}>← Inicio</button>
               {pantalla === 'preparar' && (
                   <div style={{display:'flex', gap:'8px'}}>
@@ -213,22 +219,16 @@ export default function App() {
               )}
           </div>
 
-          {pantalla === 'biblia' && (
-            <>
-              <h2 style={estilos.logo}>Biblia</h2>
-              <div style={{display:'flex', gap:'8px', marginBottom:'15px'}}>
-                  <input type="text" placeholder="Ej: Juan 3:16" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={estilos.search} />
-                  <button onClick={buscarBiblia} style={estilos.btnP}>🔍</button>
-              </div>
-              {textoBiblico && <div style={estilos.areaPlan}><p style={{lineHeight:'1.8', whiteSpace:'pre-wrap'}}>{textoBiblico}</p></div>}
-            </>
-          )}
-
           {pantalla === 'preparar' && (
             <>
               <div style={estilos.cajaCalendario}>
+                  <style>{`
+                    .react-calendar { border: none; font-family: sans-serif; width: 100%; }
+                    .react-calendar__tile { color: #000 !important; font-weight: bold; }
+                    .react-calendar__month-view__days__day--neighboringMonth { color: #ccc !important; }
+                  `}</style>
                   <Calendar onChange={setFecha} value={fecha} />
-                  <input type="text" placeholder="Nombre del Director" value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDirCentrado} />
+                  <input type="text" placeholder="¿Quién dirige hoy?" value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDirCentrado} />
               </div>
               <div style={estilos.headerPlan}>
                   <h4 onClick={() => setPlanContraido(!planContraido)}>PLAN {planContraido ? '[+]' : '[-]'}</h4>
@@ -237,7 +237,7 @@ export default function App() {
               {!planContraido && (
                   <div style={estilos.areaPlan}>
                       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                        <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                        <SortableContext items={setlist.map((i, idx) => i.id || idx)} strategy={verticalListSortingStrategy}>
                           {setlist.map(c => (
                               <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta}
                                   cambiarCategoria={(id, cat) => setSetlist(setlist.map(item => item.id === id ? { ...item, categoria: cat } : item))}
@@ -249,12 +249,12 @@ export default function App() {
                   </div>
               )}
               <div style={estilos.divisor}>BIBLIOTECA</div>
-              <input type="text" placeholder="🔍 Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
-              {canciones.filter(c => (c.titulo||'').toLowerCase().includes(busqueda.toLowerCase())).slice(0, 10).map(c => (
+              <input type="text" placeholder="🔍 Buscar canción..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
+              {canciones.filter(c => (c.titulo||'').toLowerCase().includes(busqueda.toLowerCase())).slice(0, 8).map(c => (
                 <div key={c.id} style={estilos.itemRepo}>
                   <div style={{flex: 1}}>
                     <div style={{fontSize: '0.9rem', fontWeight: 'bold'}}>{c.titulo}</div>
-                    <div style={{fontSize: '0.7rem', color: '#666'}}>{c.cantante || '---'}</div>
+                    <div style={{fontSize: '0.7rem', color: '#666'}}>{c.cantante || ''}</div>
                   </div>
                   <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}` }])} style={estilos.btnP}>+</button>
                 </div>
@@ -270,26 +270,41 @@ export default function App() {
               {setlist.map(c => <ItemSortable key={c.id} c={c} cancionAbierta={cancionAbierta} setCancionAbierta={setCancionAbierta} modoLectura={true} />)}
             </>
           )}
+
+          {pantalla === 'biblia' && (
+            <>
+              <h2 style={estilos.logo}>Biblia</h2>
+              <div style={{display:'flex', gap:'8px', marginBottom:'15px'}}>
+                  <input type="text" placeholder="Ej: Salmos 23" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={estilos.search} />
+                  <button onClick={async () => {
+                      if(!citaBiblica) return;
+                      const res = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
+                      const data = await res.json();
+                      setTextoBiblico(data.text || "No encontrada");
+                  }} style={estilos.btnP}>🔍</button>
+              </div>
+              {textoBiblico && <div style={estilos.areaPlan}><p style={{lineHeight:'1.6'}}>{textoBiblico}</p></div>}
+            </>
+          )}
        </div>
     </div>
   );
 }
 
 const estilos = {
-  fondoInicioClaro: { background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0 },
+  fondoInicioClaro: { background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'fixed' },
   capaInstrumentos: { position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' },
   instFlotante: { position: 'absolute', fontSize: '6rem', opacity: 0.1 },
   contenedorCentrado: { zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '90%', maxWidth: '400px' },
   marcoLogo: { width: '150px', height: '150px', borderRadius: '40px', overflow: 'hidden', margin: '15px 0', border: '3px solid #fff', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' },
   imagenLogo: { width: '100%', height: '100%', objectFit: 'cover' },
   menuGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', width: '100%' },
-  cardMenuClaro: { background: '#fff', border: 'none', borderRadius: '24px', padding: '20px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#334155' },
+  cardMenuClaro: { background: '#fff', border: 'none', borderRadius: '24px', padding: '20px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#334155', fontWeight:'bold' },
   fondoGeneral: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0' },
-  contenedorPrincipal: { width: '100%', maxWidth: '450px', padding: '15px', boxSizing: 'border-box' },
+  contenedorPrincipal: { width: '100%', maxWidth: '450px', padding: '0 15px', boxSizing: 'border-box' },
   btnAtras: { background: '#222', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '10px' },
   btnWA: { background: '#25D366', color: '#fff', border: 'none', padding: '10px 12px', borderRadius: '10px', fontSize:'0.75rem', fontWeight:'bold' },
   btnBorrar: { background: '#ef4444', color: '#fff', border: 'none', padding: '10px 12px', borderRadius: '10px', fontSize:'0.75rem', fontWeight:'bold' },
-  logo: { color: '#4da6ff', margin: '15px 0', textAlign: 'center' },
   cajaCalendario: { background: '#fff', padding: '15px', borderRadius: '15px', marginBottom: '20px', width:'100%', boxSizing:'border-box', display:'flex', flexDirection:'column', alignItems:'center' },
   inputDirCentrado: { width: '100%', padding: '14px', marginTop: '15px', borderRadius: '12px', border: '2px solid #e2e8f0', background: '#f8fafc', color: '#1e293b', fontWeight: 'bold', textAlign: 'center', boxSizing:'border-box' },
   headerPlan: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', color:'#4da6ff' },
@@ -309,5 +324,6 @@ const estilos = {
   search: { width: '100%', padding: '16px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '15px', marginBottom: '15px', boxSizing: 'border-box' },
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '16px', background: '#111', borderRadius: '15px', marginBottom: '10px', alignItems:'center' },
   btnP: { background: '#3b82f6', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', border: 'none', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  navEnsayo: { textAlign:'center', paddingBottom: '20px', borderBottom: '1px solid #333', marginBottom: '20px' }
+  navEnsayo: { textAlign:'center', paddingBottom: '20px', borderBottom: '1px solid #333', marginBottom: '20px' },
+  logo: { color: '#4da6ff', margin: '15px 0', textAlign: 'center' }
 }
