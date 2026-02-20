@@ -179,30 +179,36 @@ export default function App() {
     }
   };
 
-  // NUEVA OPCIÓN: API DE BOLI.NU (MUCHO MÁS ESTABLE PARA ESPAÑOL RVR1960)
+  // FUNCIÓN MEJORADA CON PROXY PARA EVITAR BLOQUEOS (CORS)
   const buscarBiblia = async () => {
     if(!citaBiblica) return;
-    setTextoBiblico("Buscando en Reina Valera 1960...");
+    setTextoBiblico("Buscando...");
     try {
-      const res = await fetch(`https://bolin.uue.org/bible/rvr1960/${encodeURIComponent(citaBiblica)}.json`);
+      // Usamos un servicio de proxy que permite peticiones desde el navegador
+      const url = `https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`;
+      const res = await fetch(url);
       const data = await res.json();
-      
-      if (data && data.text) {
-        // La API devuelve HTML a veces, lo limpiamos de etiquetas
-        const textoLimpio = data.text.replace(/<[^>]*>?/gm, '').trim();
-        setTextoBiblico(textoLimpio);
+      if (data.text) {
+        setTextoBiblico(`(${data.reference})\n\n${data.text}`);
       } else {
-        setTextoBiblico("No se encontró. Intenta: 'Juan 3:16' o 'Salmo 23:1'");
+        setTextoBiblico("No se encontró la cita. Ej: Juan 3:16");
       }
     } catch (e) { 
-      // Fallback a bible-api por si falla la primera
-      try {
-          const res2 = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
-          const data2 = await res2.json();
-          setTextoBiblico(data2.text || "Error al buscar cita.");
-      } catch (err) {
-          setTextoBiblico("Error de conexión. Revisa el formato.");
-      }
+      setTextoBiblico("Error de conexión. Intenta de nuevo."); 
+    }
+  };
+
+  // NUEVA FUNCIÓN: REFLEXIÓN / VERSÍCULO DIARIO
+  const cargarReflexion = async () => {
+    setTextoBiblico("Cargando palabra del día...");
+    setPantalla('biblia');
+    try {
+      const res = await fetch('https://beta.ourmanna.com/api/v1/get?format=json&order=daily');
+      const data = await res.json();
+      const verso = data.verse.details;
+      setTextoBiblico(`📖 REFLEXIÓN DIARIA\n\n"${verso.text}"\n\n— ${verso.reference}`);
+    } catch (e) {
+      setTextoBiblico("No se pudo cargar la reflexión. Revisa tu internet.");
     }
   };
 
@@ -221,6 +227,7 @@ export default function App() {
                  <button onClick={() => setPantalla('preparar')} style={estilos.btnMenu}>📝 Preparar Plan</button>
                  <button onClick={() => setPantalla('ensayo')} style={estilos.btnMenu}>📖 Empezar Culto</button>
                  <button onClick={() => setPantalla('biblia')} style={estilos.btnMenu}>📜 Biblia</button>
+                 <button onClick={cargarReflexion} style={{...estilos.btnMenu, background: '#10b981', color: '#fff'}}>✨ Reflexión Diaria</button>
               </div>
            </div>
         </div>
@@ -249,7 +256,11 @@ export default function App() {
               style={estilos.search} 
              />
              <button onClick={buscarBiblia} style={estilos.btnEnsayoAccion}>🔍 BUSCAR CITA</button>
-             {textoBiblico && <div style={estilos.cajaTextoBiblia}>{textoBiblico}</div>}
+             {textoBiblico && (
+               <div style={estilos.cajaTextoBiblia}>
+                 <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit'}}>{textoBiblico}</pre>
+               </div>
+             )}
           </div>
         )}
 
@@ -344,7 +355,7 @@ const estilos = {
   marcoLogoLibre: { width: '100%', maxWidth: '220px', margin: '5px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   imgLogoFull: { width: '100%', height: 'auto', objectFit: 'contain' },
   gridMenu: { display: 'grid', gap: '15px' },
-  btnMenu: { padding: '18px', borderRadius: '15px', border: 'none', background: '#4da6ff', color: '#000', fontWeight: 'bold', fontSize: '1rem' },
+  btnMenu: { padding: '18px', borderRadius: '15px', border: 'none', background: '#4da6ff', color: '#000', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' },
   contenedor: { width: '100%', maxWidth: '450px', boxSizing: 'border-box', paddingBottom: '60px', zIndex: 1 },
   navTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', width: '100%', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' },
   logo: { color: '#4da6ff', margin: 0, fontSize: '1.1rem', fontWeight: 'bold' },
