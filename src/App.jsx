@@ -179,24 +179,30 @@ export default function App() {
     }
   };
 
-  // NUEVA FUNCIÓN DE BÚSQUEDA BÍBLICA MEJORADA
+  // NUEVA OPCIÓN: API DE BOLI.NU (MUCHO MÁS ESTABLE PARA ESPAÑOL RVR1960)
   const buscarBiblia = async () => {
     if(!citaBiblica) return;
-    setTextoBiblico("Buscando...");
+    setTextoBiblico("Buscando en Reina Valera 1960...");
     try {
-      // Usamos una URL de respaldo que suele ser más estable para RVR1960
-      const res = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
+      const res = await fetch(`https://bolin.uue.org/bible/rvr1960/${encodeURIComponent(citaBiblica)}.json`);
       const data = await res.json();
       
-      if (data.text) {
-        // Formateamos para que cada verso se vea limpio
-        const limpio = data.text.replace(/\n/g, ' ').trim();
-        setTextoBiblico(limpio);
+      if (data && data.text) {
+        // La API devuelve HTML a veces, lo limpiamos de etiquetas
+        const textoLimpio = data.text.replace(/<[^>]*>?/gm, '').trim();
+        setTextoBiblico(textoLimpio);
       } else {
-        setTextoBiblico("No se encontró la cita. Intenta formato: 'Juan 3:16' o 'Salmos 23'");
+        setTextoBiblico("No se encontró. Intenta: 'Juan 3:16' o 'Salmo 23:1'");
       }
     } catch (e) { 
-      setTextoBiblico("Error de conexión. Verifica el formato de la cita."); 
+      // Fallback a bible-api por si falla la primera
+      try {
+          const res2 = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
+          const data2 = await res2.json();
+          setTextoBiblico(data2.text || "Error al buscar cita.");
+      } catch (err) {
+          setTextoBiblico("Error de conexión. Revisa el formato.");
+      }
     }
   };
 
