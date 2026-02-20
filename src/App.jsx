@@ -65,13 +65,13 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                             src="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg" 
                             alt="Spotify"
                             onClick={() => abrirEnlace('spotify')} 
-                            style={{cursor:'pointer', height: '18px', width: 'auto', filter: 'drop-shadow(0 0 2px rgba(30,215,96,0.5))'}} 
+                            style={{cursor:'pointer', height: '18px', width: 'auto'}} 
                         />
                         <img 
                             src="https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg" 
                             alt="YouTube"
                             onClick={() => abrirEnlace('youtube')} 
-                            style={{cursor:'pointer', height: '14px', width: 'auto', filter: 'drop-shadow(0 0 2px rgba(255,0,0,0.5))'}} 
+                            style={{cursor:'pointer', height: '14px', width: 'auto'}} 
                         />
                     </div>
                 </div>
@@ -119,11 +119,9 @@ export default function App() {
   const [busqueda, setBusqueda] = useState('');
   const [cancionAbierta, setCancionAbierta] = useState(null);
   const [setlist, setSetlist] = useState([]);
-  const [existePlan, setExistePlan] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState('Alabanza');
   const [planContraido, setPlanContraido] = useState(false);
-  const [citaBiblica, setCitaBiblica] = useState('');
-  const [textoBiblico, setTextoBiblico] = useState('');
+  const [textoReflexion, setTextoReflexion] = useState('');
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
@@ -154,9 +152,9 @@ export default function App() {
       const fechaISO = fecha.toISOString().split('T')[0];
       const { data } = await supabase.from('planes_culto').select('*').eq('fecha', fechaISO).maybeSingle();
       if (data && data.canciones) {
-        setDirector(data.director || ""); setSetlist(data.canciones); setExistePlan(true);
+        setDirector(data.director || ""); setSetlist(data.canciones);
       } else {
-        setDirector(""); setSetlist([]); setExistePlan(false);
+        setDirector(""); setSetlist([]);
       }
     };
     cargarPlan();
@@ -167,7 +165,7 @@ export default function App() {
     const { error } = await supabase.from('planes_culto').upsert({ 
       fecha: fechaISO, director, canciones: setlist 
     }, { onConflict: 'fecha' });
-    if (!error) { alert("✅ Sincronizado"); setExistePlan(true); }
+    if (!error) alert("✅ Sincronizado");
   };
 
   const borrarPlan = async () => {
@@ -175,45 +173,24 @@ export default function App() {
     if (password === "1234") {
       const fechaISO = fecha.toISOString().split('T')[0];
       await supabase.from('planes_culto').delete().eq('fecha', fechaISO);
-      setSetlist([]); setDirector(""); setExistePlan(false); alert("🗑️ Borrado");
+      setSetlist([]); setDirector(""); alert("🗑️ Borrado");
     }
   };
 
-  // --- BUSCADOR BÍBLICO (OPCIÓN ESTABLE EN ESPAÑOL) ---
-  const buscarBiblia = async () => {
-    if(!citaBiblica) return;
-    setTextoBiblico("Buscando en Reina Valera...");
-    try {
-      // Usamos una API alternativa que responde mejor a español
-      const res = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
-      const data = await res.json();
-      
-      if (data && data.text) {
-        setTextoBiblico(`📖 ${data.reference}\n\n${data.text}`);
-      } else {
-        setTextoBiblico("Cita no encontrada. Prueba con: Juan 3:16");
-      }
-    } catch (e) {
-      setTextoBiblico("Error al conectar. Verifica tu internet.");
-    }
-  };
-
-  // --- REFLEXIÓN DIARIA (EN ESPAÑOL DIRECTO) ---
+  // --- NUEVA FUNCIÓN DE REFLEXIÓN MEJORADA (SOLO ESPAÑOL) ---
   const cargarReflexion = async () => {
-    setTextoBiblico("Obteniendo palabra del día...");
-    setPantalla('biblia');
+    setTextoReflexion("Buscando una palabra para hoy...");
+    setPantalla('reflexion');
     try {
-      // Usamos un feed de versículos en español
       const res = await fetch('https://un-versiculo-diario-api.vercel.app/api/v1/versiculo');
       const data = await res.json();
-      if(data.versiculo) {
-        setTextoBiblico(`✨ PALABRA DEL DÍA\n\n"${data.versiculo}"\n\n— ${data.cita}`);
+      if (data.versiculo) {
+        setTextoReflexion(`📖 PALABRA DEL DÍA\n\n"${data.versiculo}"\n\n— ${data.cita}`);
       } else {
-        // Fallback si la API de arriba falla
-        setTextoBiblico("Salmos 23:1\n\nJehová es mi pastor; nada me faltará.");
+        throw new Error();
       }
     } catch (e) {
-      setTextoBiblico("Error al cargar reflexión. Intenta de nuevo.");
+      setTextoReflexion("✨ Salmos 121:1-2\n\nAlzaré mis ojos a los montes; ¿De dónde vendrá mi socorro? Mi socorro viene de Jehová, Que hizo los cielos y la tierra.");
     }
   };
 
@@ -231,7 +208,6 @@ export default function App() {
               <div style={estilos.gridMenu}>
                  <button onClick={() => setPantalla('preparar')} style={estilos.btnMenu}>📝 Preparar Plan</button>
                  <button onClick={() => setPantalla('ensayo')} style={estilos.btnMenu}>📖 Empezar Culto</button>
-                 <button onClick={() => setPantalla('biblia')} style={estilos.btnMenu}>📜 Biblia</button>
                  <button onClick={cargarReflexion} style={{...estilos.btnMenu, background: '#10b981', color: '#fff'}}>✨ Reflexión Diaria</button>
               </div>
            </div>
@@ -250,22 +226,10 @@ export default function App() {
            <h2 style={estilos.logo}>🎸 {pantalla === 'ensayo' ? 'MODO CULTO' : pantalla.toUpperCase()}</h2>
         </div>
 
-        {pantalla === 'biblia' && (
-          <div style={{width:'100%', position: 'relative'}}>
-             <input 
-              type="text" 
-              placeholder="Ej: Juan 3:16" 
-              value={citaBiblica} 
-              onChange={(e) => setCitaBiblica(e.target.value)} 
-              onKeyPress={(e) => e.key === 'Enter' && buscarBiblia()}
-              style={estilos.search} 
-             />
-             <button onClick={buscarBiblia} style={estilos.btnEnsayoAccion}>🔍 BUSCAR CITA</button>
-             {textoBiblico && (
-               <div style={estilos.cajaTextoBiblia}>
-                 <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit'}}>{textoBiblico}</pre>
-               </div>
-             )}
+        {pantalla === 'reflexion' && (
+          <div style={estilos.cajaTextoBiblia}>
+             <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '1.2rem'}}>{textoReflexion}</pre>
+             <button onClick={() => setPantalla('inicio')} style={{...estilos.btnEnsayoAccion, marginTop: '20px'}}>VOLVER</button>
           </div>
         )}
 
@@ -291,8 +255,8 @@ export default function App() {
           </div>
         )}
 
-        {((pantalla === 'preparar' && !planContraido) || pantalla === 'ensayo') && (
-            <div style={{...estilos.areaPlan, position: 'relative'}}>
+        {((pantalla === 'preparar' && !planContraido) || pantalla === 'ensayo') && pantalla !== 'reflexion' && (
+            <div style={estilos.areaPlan}>
                 {pantalla === 'ensayo' && <div style={{color: '#4da6ff', fontSize: '0.8rem', marginBottom: '10px', fontWeight: 'bold'}}>PERSONA QUE DIRIGE: {director || 'No asignado'}</div>}
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
@@ -333,7 +297,6 @@ export default function App() {
       <style>{`
         .custom-calendar { width: 100% !important; border: none !important; color: black !important; border-radius: 10px; overflow: hidden; }
         .react-calendar__tile { color: black !important; padding: 10px 5px !important; font-size: 0.8rem; }
-        .react-calendar__navigation button { color: black !important; font-weight: bold; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
       `}</style>
@@ -392,5 +355,5 @@ const estilos = {
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: 'rgba(17,17,17,0.9)', borderRadius: '12px', marginBottom: '10px', border: '1px solid #222' },
   btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   btnEnsayoAccion: { width: '100%', padding: '15px', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 'bold', marginBottom: '10px' },
-  cajaTextoBiblia: { padding: '20px', background: 'rgba(17,17,17,0.9)', borderRadius: '15px', marginTop: '15px', lineHeight: '1.7', color: '#eee', fontSize: '1.1rem', border: '1px solid #333', textAlign: 'left' }
+  cajaTextoBiblia: { padding: '20px', background: 'rgba(17,17,17,0.9)', borderRadius: '15px', marginTop: '15px', lineHeight: '1.7', color: '#eee', fontSize: '1.1rem', border: '1px solid #333', textAlign: 'center' }
 }
