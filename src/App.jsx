@@ -21,6 +21,14 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
     catch (e) { return texto; }
   };
 
+  const abrirEnlace = (plataforma) => {
+    const busqueda = encodeURIComponent(`${c.titulo} ${c.cantante || c.artista || ''}`);
+    const url = plataforma === 'spotify' 
+      ? `https://open.spotify.com/search/${busqueda}` 
+      : `https://www.youtube.com/results?search_query=${busqueda}`;
+    window.open(url, '_blank');
+  };
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -50,8 +58,12 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                 <div style={{fontSize: '0.85rem', color: '#fff', fontWeight: 'bold'}}>
                     {c.categoria && <span style={estilos.tag}>{c.categoria}</span>} {c.titulo} 
                 </div>
-                <div style={{fontSize: '0.7rem', color: '#4da6ff'}}>
-                    Tono: {transponerIndividual(c.tono || c.key, misSemitonos)} | 🎤 {c.cantante || c.artista || 'Voz'}
+                <div style={{fontSize: '0.7rem', color: '#4da6ff', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <span>Tono: {transponerIndividual(c.tono || c.key, misSemitonos)} | 🎤 {c.cantante || c.artista || 'Voz'}</span>
+                    <div style={{display: 'flex', gap: '5px'}} onClick={(e) => e.stopPropagation()}>
+                        <span onClick={() => abrirEnlace('spotify')} style={{cursor:'pointer', fontSize: '1rem'}}>🟢</span>
+                        <span onClick={() => abrirEnlace('youtube')} style={{cursor:'pointer', fontSize: '1rem'}}>🔴</span>
+                    </div>
                 </div>
           </div>
         </div>
