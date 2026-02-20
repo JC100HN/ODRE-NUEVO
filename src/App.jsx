@@ -65,13 +65,13 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                             src="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg" 
                             alt="Spotify"
                             onClick={() => abrirEnlace('spotify')} 
-                            style={{cursor:'pointer', height: '22px', width: 'auto', filter: 'drop-shadow(0 0 2px rgba(30,215,96,0.5))'}} 
+                            style={{cursor:'pointer', height: '18px', width: 'auto', filter: 'drop-shadow(0 0 2px rgba(30,215,96,0.5))'}} 
                         />
                         <img 
                             src="https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg" 
                             alt="YouTube"
                             onClick={() => abrirEnlace('youtube')} 
-                            style={{cursor:'pointer', height: '18px', width: 'auto', filter: 'drop-shadow(0 0 2px rgba(255,0,0,0.5))'}} 
+                            style={{cursor:'pointer', height: '14px', width: 'auto', filter: 'drop-shadow(0 0 2px rgba(255,0,0,0.5))'}} 
                         />
                     </div>
                 </div>
@@ -213,17 +213,18 @@ export default function App() {
   // PANTALLA PREPARAR, ENSAYO O BIBLIA
   return (
     <div style={estilos.fondo}>
+      <div style={estilos.overlayFijo}></div>
       <div style={estilos.contenedor}>
         
         {/* CABECERA DE NAVEGACIÓN */}
         <div style={estilos.navTop}>
            <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Inicio</button>
-           <h2 style={estilos.logo}>🎸 {pantalla.toUpperCase()}</h2>
+           <h2 style={estilos.logo}>🎸 {pantalla === 'ensayo' ? 'MODO CULTO' : pantalla.toUpperCase()}</h2>
         </div>
 
         {/* CONTENIDO: BIBLIA */}
         {pantalla === 'biblia' && (
-          <div style={{width:'100%'}}>
+          <div style={{width:'100%', position: 'relative'}}>
              <input type="text" placeholder="Ej: Juan 3:16" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={estilos.search} />
              <button onClick={buscarBiblia} style={estilos.btnEnsayoAccion}>🔍 BUSCAR CITA</button>
              {textoBiblico && <div style={estilos.cajaTextoBiblia}>{textoBiblico}</div>}
@@ -232,7 +233,7 @@ export default function App() {
 
         {/* CONTENIDO: PREPARAR PLAN */}
         {pantalla === 'preparar' && (
-          <>
+          <div style={{position:'relative'}}>
             <div style={estilos.cajaCalendario}>
                 <Calendar onChange={setFecha} value={fecha} className="custom-calendar" />
                 <input type="text" placeholder="¿Quién dirige?" value={director} onChange={(e) => setDirector(e.target.value)} style={estilos.inputDir} />
@@ -250,12 +251,13 @@ export default function App() {
                    <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
                 </div>
             </div>
-          </>
+          </div>
         )}
 
         {/* LISTADO DE CANCIONES (EN MODO PREPARAR O ENSAYO) */}
         {((pantalla === 'preparar' && !planContraido) || pantalla === 'ensayo') && (
-            <div style={estilos.areaPlan}>
+            <div style={{...estilos.areaPlan, position: 'relative'}}>
+                {pantalla === 'ensayo' && <div style={{color: '#4da6ff', fontSize: '0.8rem', marginBottom: '10px', fontWeight: 'bold'}}>PERSONA QUE DIRIGE: {director || 'No asignado'}</div>}
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={setlist.map(i => i.id)} strategy={verticalListSortingStrategy}>
                     {setlist.map(c => (
@@ -273,7 +275,7 @@ export default function App() {
 
         {/* BIBLIOTECA (SOLO EN MODO PREPARAR) */}
         {pantalla === 'preparar' && (
-          <>
+          <div style={{position:'relative'}}>
             <div style={estilos.divisor}>BIBLIOTECA</div>
             <input type="text" placeholder="🔍 Buscar canto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={estilos.search} />
             <div style={estilos.tabs}>
@@ -290,13 +292,15 @@ export default function App() {
                 <button onClick={() => setSetlist([...setlist, {...c, id: `set-${Date.now()}-${Math.random()}`, categoria: ''}])} style={estilos.btnP}>+</button>
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
       <style>{`
-        .custom-calendar { width: 100% !important; border: none !important; color: black !important; }
+        .custom-calendar { width: 100% !important; border: none !important; color: black !important; border-radius: 10px; overflow: hidden; }
         .react-calendar__tile { color: black !important; padding: 10px 5px !important; font-size: 0.8rem; }
         .react-calendar__navigation button { color: black !important; font-weight: bold; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
       `}</style>
     </div>
   )
@@ -308,6 +312,16 @@ const estilos = {
     backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', width: '100vw', position: 'fixed', top: 0, left: 0, zIndex: 1000
   },
   overlay: { backgroundColor: 'rgba(0,0,0,0.85)', height: '100%', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  overlayFijo: { backgroundColor: 'rgba(0,0,0,0.92)', height: '100%', width: '100%', position: 'fixed', top: 0, left: 0, zIndex: -1 },
+  
+  // NUEVO FONDO PARA PANTALLAS INTERNAS
+  fondo: { 
+    backgroundImage: 'url("https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=1000")', 
+    backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed',
+    color: '#fff', minHeight: '100vh', width: '100%', padding: '10px', boxSizing: 'border-box', 
+    display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto' 
+  },
+
   contenedorInicio: { textAlign: 'center', width: '85%', maxWidth: '380px' },
   logoLetraDinamica: { color: '#4da6ff', fontSize: '4.5rem', fontWeight: '950', margin: 0, textShadow: '0px 0px 15px rgba(77, 166, 255, 0.4)', letterSpacing: '2px' },
   subLogoDinamico: { color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '5px', marginBottom: '35px', textTransform: 'uppercase' },
@@ -316,9 +330,8 @@ const estilos = {
   gridMenu: { display: 'grid', gap: '15px' },
   btnMenu: { padding: '18px', borderRadius: '15px', border: 'none', background: '#4da6ff', color: '#000', fontWeight: 'bold', fontSize: '1rem' },
 
-  fondo: { backgroundColor: '#000', color: '#fff', minHeight: '100vh', width: '100%', padding: '10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  contenedor: { width: '100%', maxWidth: '450px', boxSizing: 'border-box', paddingBottom: '40px' },
-  navTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', width: '100%', padding: '5px 0' },
+  contenedor: { width: '100%', maxWidth: '450px', boxSizing: 'border-box', paddingBottom: '60px', zIndex: 1 },
+  navTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', width: '100%', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' },
   logo: { color: '#4da6ff', margin: 0, fontSize: '1.1rem', fontWeight: 'bold' },
   btnRegresar: { background: '#222', color: '#fff', border: '1px solid #444', padding: '10px 15px', borderRadius: '12px', fontSize: '0.85rem' },
   cajaCalendario: { background: '#fff', padding: '10px', borderRadius: '15px', marginBottom: '15px', width: '100%', boxSizing: 'border-box' },
@@ -327,8 +340,8 @@ const estilos = {
   btnMiniG: { background: '#10b981', color: 'white', padding: '10px 15px', borderRadius: '8px', border: 'none', fontSize: '0.75rem', fontWeight: 'bold' },
   btnWA: { background: '#25D366', color: 'white', border: 'none', padding: '10px', borderRadius: '8px' },
   btnBorrar: { background: '#441111', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px', borderRadius: '8px' },
-  areaPlan: { background: '#0a0a0a', padding: '8px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', border: '1px solid #222' },
-  headerNormal: { display: 'flex', padding: '12px', background: '#161616', borderRadius: '8px', marginBottom: '4px' },
+  areaPlan: { background: 'rgba(10,10,10,0.8)', padding: '8px', borderRadius: '12px', width: '100%', boxSizing: 'border-box', border: '1px solid #222' },
+  headerNormal: { display: 'flex', padding: '12px', background: 'rgba(22,22,22,0.9)', borderRadius: '8px', marginBottom: '4px' },
   headerActivo: { display: 'flex', padding: '12px', background: '#1e3a8a', borderRadius: '8px 8px 0 0' },
   infoCuerpo: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
   manubrio: { fontSize: '1.2rem', color: '#444' },
@@ -341,12 +354,12 @@ const estilos = {
   btnT: { background: '#222', border: '1px solid #333', color: '#4da6ff', padding: '8px 14px', borderRadius: '8px' },
   letraPre: { whiteSpace: 'pre-wrap', color: '#ddd', fontFamily: 'monospace', lineHeight: '1.6' },
   divisor: { margin: '25px 0 15px', color: '#4da6ff', textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem' },
-  search: { width: '100%', padding: '15px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '12px', marginBottom: '10px', boxSizing: 'border-box', fontSize: '1rem' },
+  search: { width: '100%', padding: '15px', background: 'rgba(17,17,17,0.9)', border: '1px solid #333', color: '#fff', borderRadius: '12px', marginBottom: '10px', boxSizing: 'border-box', fontSize: '1rem' },
   tabs: { display: 'flex', gap: '10px', marginBottom: '15px' },
   tabActiva: { flex: 1, padding: '12px', background: '#4da6ff', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '12px' },
-  tabInactiva: { flex: 1, padding: '12px', background: '#111', color: '#666', border: '1px solid #333', borderRadius: '12px' },
-  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#111', borderRadius: '12px', marginBottom: '10px', border: '1px solid #222' },
+  tabInactiva: { flex: 1, padding: '12px', background: 'rgba(17,17,17,0.8)', color: '#666', border: '1px solid #333', borderRadius: '12px' },
+  itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: 'rgba(17,17,17,0.9)', borderRadius: '12px', marginBottom: '10px', border: '1px solid #222' },
   btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   btnEnsayoAccion: { width: '100%', padding: '15px', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 'bold', marginBottom: '10px' },
-  cajaTextoBiblia: { padding: '20px', background: '#111', borderRadius: '15px', marginTop: '15px', lineHeight: '1.7', color: '#eee', fontSize: '1.1rem', border: '1px solid #333' }
+  cajaTextoBiblia: { padding: '20px', background: 'rgba(17,17,17,0.9)', borderRadius: '15px', marginTop: '15px', lineHeight: '1.7', color: '#eee', fontSize: '1.1rem', border: '1px solid #333' }
 }
