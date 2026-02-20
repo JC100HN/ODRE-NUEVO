@@ -179,13 +179,25 @@ export default function App() {
     }
   };
 
+  // NUEVA FUNCIÓN DE BÚSQUEDA BÍBLICA MEJORADA
   const buscarBiblia = async () => {
     if(!citaBiblica) return;
+    setTextoBiblico("Buscando...");
     try {
+      // Usamos una URL de respaldo que suele ser más estable para RVR1960
       const res = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
       const data = await res.json();
-      setTextoBiblico(data.text || "No se encontró la cita.");
-    } catch (e) { alert("Error al buscar."); }
+      
+      if (data.text) {
+        // Formateamos para que cada verso se vea limpio
+        const limpio = data.text.replace(/\n/g, ' ').trim();
+        setTextoBiblico(limpio);
+      } else {
+        setTextoBiblico("No se encontró la cita. Intenta formato: 'Juan 3:16' o 'Salmos 23'");
+      }
+    } catch (e) { 
+      setTextoBiblico("Error de conexión. Verifica el formato de la cita."); 
+    }
   };
 
   // PANTALLA INICIO
@@ -210,28 +222,31 @@ export default function App() {
     );
   }
 
-  // PANTALLA PREPARAR, ENSAYO O BIBLIA
   return (
     <div style={estilos.fondo}>
       <div style={estilos.overlayFijo}></div>
       <div style={estilos.contenedor}>
         
-        {/* CABECERA DE NAVEGACIÓN */}
         <div style={estilos.navTop}>
            <button onClick={() => setPantalla('inicio')} style={estilos.btnRegresar}>← Inicio</button>
            <h2 style={estilos.logo}>🎸 {pantalla === 'ensayo' ? 'MODO CULTO' : pantalla.toUpperCase()}</h2>
         </div>
 
-        {/* CONTENIDO: BIBLIA */}
         {pantalla === 'biblia' && (
           <div style={{width:'100%', position: 'relative'}}>
-             <input type="text" placeholder="Ej: Juan 3:16" value={citaBiblica} onChange={(e) => setCitaBiblica(e.target.value)} style={estilos.search} />
+             <input 
+              type="text" 
+              placeholder="Ej: Juan 3:16" 
+              value={citaBiblica} 
+              onChange={(e) => setCitaBiblica(e.target.value)} 
+              onKeyPress={(e) => e.key === 'Enter' && buscarBiblia()}
+              style={estilos.search} 
+             />
              <button onClick={buscarBiblia} style={estilos.btnEnsayoAccion}>🔍 BUSCAR CITA</button>
              {textoBiblico && <div style={estilos.cajaTextoBiblia}>{textoBiblico}</div>}
           </div>
         )}
 
-        {/* CONTENIDO: PREPARAR PLAN */}
         {pantalla === 'preparar' && (
           <div style={{position:'relative'}}>
             <div style={estilos.cajaCalendario}>
@@ -254,7 +269,6 @@ export default function App() {
           </div>
         )}
 
-        {/* LISTADO DE CANCIONES (EN MODO PREPARAR O ENSAYO) */}
         {((pantalla === 'preparar' && !planContraido) || pantalla === 'ensayo') && (
             <div style={{...estilos.areaPlan, position: 'relative'}}>
                 {pantalla === 'ensayo' && <div style={{color: '#4da6ff', fontSize: '0.8rem', marginBottom: '10px', fontWeight: 'bold'}}>PERSONA QUE DIRIGE: {director || 'No asignado'}</div>}
@@ -273,7 +287,6 @@ export default function App() {
             </div>
         )}
 
-        {/* BIBLIOTECA (SOLO EN MODO PREPARAR) */}
         {pantalla === 'preparar' && (
           <div style={{position:'relative'}}>
             <div style={estilos.divisor}>BIBLIOTECA</div>
@@ -313,15 +326,12 @@ const estilos = {
   },
   overlay: { backgroundColor: 'rgba(0,0,0,0.85)', height: '100%', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' },
   overlayFijo: { backgroundColor: 'rgba(0,0,0,0.92)', height: '100%', width: '100%', position: 'fixed', top: 0, left: 0, zIndex: -1 },
-  
-  // NUEVO FONDO PARA PANTALLAS INTERNAS
   fondo: { 
     backgroundImage: 'url("https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=1000")', 
     backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed',
     color: '#fff', minHeight: '100vh', width: '100%', padding: '10px', boxSizing: 'border-box', 
     display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto' 
   },
-
   contenedorInicio: { textAlign: 'center', width: '85%', maxWidth: '380px' },
   logoLetraDinamica: { color: '#4da6ff', fontSize: '4.5rem', fontWeight: '950', margin: 0, textShadow: '0px 0px 15px rgba(77, 166, 255, 0.4)', letterSpacing: '2px' },
   subLogoDinamico: { color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '5px', marginBottom: '35px', textTransform: 'uppercase' },
@@ -329,7 +339,6 @@ const estilos = {
   imgLogoFull: { width: '100%', height: 'auto', objectFit: 'contain' },
   gridMenu: { display: 'grid', gap: '15px' },
   btnMenu: { padding: '18px', borderRadius: '15px', border: 'none', background: '#4da6ff', color: '#000', fontWeight: 'bold', fontSize: '1rem' },
-
   contenedor: { width: '100%', maxWidth: '450px', boxSizing: 'border-box', paddingBottom: '60px', zIndex: 1 },
   navTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', width: '100%', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' },
   logo: { color: '#4da6ff', margin: 0, fontSize: '1.1rem', fontWeight: 'bold' },
@@ -361,5 +370,5 @@ const estilos = {
   itemRepo: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: 'rgba(17,17,17,0.9)', borderRadius: '12px', marginBottom: '10px', border: '1px solid #222' },
   btnP: { background: '#3b82f6', border: 'none', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   btnEnsayoAccion: { width: '100%', padding: '15px', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 'bold', marginBottom: '10px' },
-  cajaTextoBiblia: { padding: '20px', background: 'rgba(17,17,17,0.9)', borderRadius: '15px', marginTop: '15px', lineHeight: '1.7', color: '#eee', fontSize: '1.1rem', border: '1px solid #333' }
+  cajaTextoBiblia: { padding: '20px', background: 'rgba(17,17,17,0.9)', borderRadius: '15px', marginTop: '15px', lineHeight: '1.7', color: '#eee', fontSize: '1.1rem', border: '1px solid #333', textAlign: 'left' }
 }
