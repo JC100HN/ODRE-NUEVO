@@ -58,11 +58,11 @@ function ItemSortable({ c, cancionAbierta, setCancionAbierta, quitarDelSetlist, 
                 <div style={{fontSize: '0.85rem', color: '#fff', fontWeight: 'bold'}}>
                     {c.categoria && <span style={estilos.tag}>{c.categoria}</span>} {c.titulo} 
                 </div>
-                <div style={{fontSize: '0.7rem', color: '#4da6ff', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <div style={{fontSize: '0.7rem', color: '#4da6ff', display: 'flex', alignItems: 'center', gap: '15px', marginTop: '4px'}}>
                     <span>Tono: {transponerIndividual(c.tono || c.key, misSemitonos)} | 🎤 {c.cantante || c.artista || 'Voz'}</span>
-                    <div style={{display: 'flex', gap: '5px'}} onClick={(e) => e.stopPropagation()}>
-                        <span onClick={() => abrirEnlace('spotify')} style={{cursor:'pointer', fontSize: '1rem'}}>🟢</span>
-                        <span onClick={() => abrirEnlace('youtube')} style={{cursor:'pointer', fontSize: '1rem'}}>🔴</span>
+                    <div style={{display: 'flex', gap: '12px', alignItems: 'center'}} onClick={(e) => e.stopPropagation()}>
+                        <span onClick={() => abrirEnlace('spotify')} style={{cursor:'pointer', fontSize: '1.3rem', filter: 'drop-shadow(0 0 5px #1DB954)'}} title="Spotify"></span>
+                        <span onClick={() => abrirEnlace('youtube')} style={{cursor:'pointer', fontSize: '1.3rem', filter: 'drop-shadow(0 0 5px #FF0000)'}} title="YouTube">󰗃</span>
                     </div>
                 </div>
           </div>
@@ -287,6 +287,10 @@ export default function App() {
         .custom-calendar { width: 100% !important; border: none !important; color: black !important; }
         .react-calendar__tile { color: black !important; padding: 10px 5px !important; font-size: 0.8rem; }
         .react-calendar__navigation button { color: black !important; font-weight: bold; }
+        
+        /* Estilos para los iconos de música */
+        span[title="Spotify"] { color: #1DB954; font-family: serif; font-weight: bold; }
+        span[title="YouTube"] { color: #FF0000; font-family: serif; font-weight: bold; }
       `}</style>
     </div>
   )
