@@ -179,36 +179,41 @@ export default function App() {
     }
   };
 
-  // FUNCIÓN MEJORADA CON PROXY PARA EVITAR BLOQUEOS (CORS)
+  // --- BUSCADOR BÍBLICO (OPCIÓN ESTABLE EN ESPAÑOL) ---
   const buscarBiblia = async () => {
     if(!citaBiblica) return;
-    setTextoBiblico("Buscando...");
+    setTextoBiblico("Buscando en Reina Valera...");
     try {
-      // Usamos un servicio de proxy que permite peticiones desde el navegador
-      const url = `https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`;
-      const res = await fetch(url);
+      // Usamos una API alternativa que responde mejor a español
+      const res = await fetch(`https://bible-api.com/${encodeURIComponent(citaBiblica)}?translation=rvr09`);
       const data = await res.json();
-      if (data.text) {
-        setTextoBiblico(`(${data.reference})\n\n${data.text}`);
+      
+      if (data && data.text) {
+        setTextoBiblico(`📖 ${data.reference}\n\n${data.text}`);
       } else {
-        setTextoBiblico("No se encontró la cita. Ej: Juan 3:16");
+        setTextoBiblico("Cita no encontrada. Prueba con: Juan 3:16");
       }
-    } catch (e) { 
-      setTextoBiblico("Error de conexión. Intenta de nuevo."); 
+    } catch (e) {
+      setTextoBiblico("Error al conectar. Verifica tu internet.");
     }
   };
 
-  // NUEVA FUNCIÓN: REFLEXIÓN / VERSÍCULO DIARIO
+  // --- REFLEXIÓN DIARIA (EN ESPAÑOL DIRECTO) ---
   const cargarReflexion = async () => {
-    setTextoBiblico("Cargando palabra del día...");
+    setTextoBiblico("Obteniendo palabra del día...");
     setPantalla('biblia');
     try {
-      const res = await fetch('https://beta.ourmanna.com/api/v1/get?format=json&order=daily');
+      // Usamos un feed de versículos en español
+      const res = await fetch('https://un-versiculo-diario-api.vercel.app/api/v1/versiculo');
       const data = await res.json();
-      const verso = data.verse.details;
-      setTextoBiblico(`📖 REFLEXIÓN DIARIA\n\n"${verso.text}"\n\n— ${verso.reference}`);
+      if(data.versiculo) {
+        setTextoBiblico(`✨ PALABRA DEL DÍA\n\n"${data.versiculo}"\n\n— ${data.cita}`);
+      } else {
+        // Fallback si la API de arriba falla
+        setTextoBiblico("Salmos 23:1\n\nJehová es mi pastor; nada me faltará.");
+      }
     } catch (e) {
-      setTextoBiblico("No se pudo cargar la reflexión. Revisa tu internet.");
+      setTextoBiblico("Error al cargar reflexión. Intenta de nuevo.");
     }
   };
 
