@@ -177,20 +177,26 @@ export default function App() {
     }
   };
 
+  // --- FUNCIÓN DE REFLEXIÓN MEJORADA (MÁS DINÁMICA) ---
   const cargarReflexion = async () => {
     setTextoReflexion("Buscando una palabra para hoy...");
     setPantalla('reflexion');
-    try {
-      const res = await fetch('https://un-versiculo-diario-api.vercel.app/api/v1/versiculo');
-      const data = await res.json();
-      if (data.versiculo) {
-        setTextoReflexion(`📖 PALABRA DEL DÍA\n\n"${data.versiculo}"\n\n— ${data.cita}`);
-      } else {
-        throw new Error();
-      }
-    } catch (e) {
-      setTextoReflexion("✨ Salmos 121:1-2\n\nAlzaré mis ojos a los montes; ¿De dónde vendrá mi socorro? Mi socorro viene de Jehová, Que hizo los cielos y la tierra.");
-    }
+    
+    const versiculos = [
+      { v: "Alzaré mis ojos a los montes; ¿De dónde vendrá mi socorro? Mi socorro viene de Jehová, Que hizo los cielos y la tierra.", c: "Salmos 121:1-2" },
+      { v: "Todo lo puedo en Cristo que me fortalece.", c: "Filipenses 4:13" },
+      { v: "Jehová es mi pastor; nada me faltará.", c: "Salmos 23:1" },
+      { v: "Mira que te mando que te esfuerces y seas valiente; no temas ni desmayes, porque Jehová tu Dios estará contigo en dondequiera que vayas.", c: "Josué 1:9" },
+      { v: "No temas, porque yo estoy contigo; no desmayes, porque yo soy tu Dios que te esfuerzo; siempre te ayudaré, siempre te sustentaré con la diestra de mi justicia.", c: "Isaías 41:10" },
+      { v: "Vengan a mí todos ustedes que están cansados y agobiados, y yo les daré descanso.", c: "Mateo 11:28" },
+      { v: "El Señor es mi luz y mi salvación; ¿a quién temeré? El Señor es el baluarte de mi vida; ¿de quién he de atemorizarme?", c: "Salmos 27:1" }
+    ];
+
+    // Simular carga y elegir uno al azar para que cambie siempre
+    setTimeout(() => {
+      const aleatorio = versiculos[Math.floor(Math.random() * versiculos.length)];
+      setTextoReflexion(`📖 PALABRA DEL DÍA\n\n"${aleatorio.v}"\n\n— ${aleatorio.c}`);
+    }, 500);
   };
 
   // PANTALLA INICIO
@@ -244,7 +250,6 @@ export default function App() {
                    <button onClick={() => {
                      const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
                      
-                     // Formato WhatsApp mejorado
                      let msj = `🎸 *ORDEN DE CULTO - ITED*\n`;
                      msj += `📅 *${dia}*\n`;
                      msj += `👤 *Dirige:* ${director}\n\n`;
