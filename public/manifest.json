@@ -1,0 +1,18 @@
+{
+  "short_name": "ITED",
+  "name": "ITED Monte Alegre",
+  "description": "Aplicación para el Plan de Culto y Alabanza",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/JC100HN/ODRE-NUEVO/main/src/assets/logo%20odre%20nuevo%202.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "orientation": "portrait"
+}

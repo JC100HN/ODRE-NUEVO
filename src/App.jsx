@@ -177,7 +177,6 @@ export default function App() {
     }
   };
 
-  // --- NUEVA FUNCIÓN DE REFLEXIÓN MEJORADA (SOLO ESPAÑOL) ---
   const cargarReflexion = async () => {
     setTextoReflexion("Buscando una palabra para hoy...");
     setPantalla('reflexion');
@@ -244,9 +243,26 @@ export default function App() {
                 <div style={{display:'flex', gap:'5px'}}>
                    <button onClick={() => {
                      const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
-                     let msj = `🎸 *ITED MONTE ALEGRE*\n📅 *${dia}*\n👤 *Dirige:* ${director}\n\n`;
-                     setlist.forEach(c => msj += `• ${c.titulo} (${c.tono})\n`);
-                     window.open(`https://wa.me/?text=${encodeURIComponent(msj)}`, '_blank');
+                     
+                     // Formato WhatsApp mejorado
+                     let msj = `🎸 *ORDEN DE CULTO - ITED*\n`;
+                     msj += `📅 *${dia}*\n`;
+                     msj += `👤 *Dirige:* ${director}\n\n`;
+
+                     const categorias = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
+                     
+                     categorias.forEach(cat => {
+                       const cancionesDeCat = setlist.filter(c => c.categoria === cat);
+                       if (cancionesDeCat.length > 0) {
+                         msj += `*${cat.toUpperCase()}:*\n`;
+                         cancionesDeCat.forEach(c => {
+                           msj += ` · ${c.titulo.toUpperCase()} ([${c.tono}])\n`;
+                         });
+                         msj += `\n`;
+                       }
+                     });
+
+                     window.open(`https://wa.me/?text=${encodeURIComponent(msj.trim())}`, '_blank');
                    }} style={estilos.btnWA}>📲</button>
                    <button onClick={borrarPlan} style={estilos.btnBorrar}>🗑️</button>
                    <button onClick={guardarPlan} style={estilos.btnMiniG}>💾 GUARDAR</button>
