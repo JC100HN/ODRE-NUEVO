@@ -177,7 +177,7 @@ export default function App() {
     }
   };
 
-  // --- FUNCIÓN DE REFLEXIÓN MEJORADA (MÁS DINÁMICA) ---
+  // --- FUNCIÓN DE REFLEXIÓN MEJORADA ---
   const cargarReflexion = async () => {
     setTextoReflexion("Buscando una palabra para hoy...");
     setPantalla('reflexion');
@@ -192,7 +192,6 @@ export default function App() {
       { v: "El Señor es mi luz y mi salvación; ¿a quién temeré? El Señor es el baluarte de mi vida; ¿de quién he de atemorizarme?", c: "Salmos 27:1" }
     ];
 
-    // Simular carga y elegir uno al azar para que cambie siempre
     setTimeout(() => {
       const aleatorio = versiculos[Math.floor(Math.random() * versiculos.length)];
       setTextoReflexion(`📖 PALABRA DEL DÍA\n\n"${aleatorio.v}"\n\n— ${aleatorio.c}`);
@@ -249,13 +248,11 @@ export default function App() {
                 <div style={{display:'flex', gap:'5px'}}>
                    <button onClick={() => {
                      const dia = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
-                     
                      let msj = `🎸 *ORDEN DE CULTO - ITED*\n`;
                      msj += `📅 *${dia}*\n`;
                      msj += `👤 *Dirige:* ${director}\n\n`;
 
                      const categorias = ["Bienvenida", "Alabanza", "Adoración", "Ofrenda", "Despedida"];
-                     
                      categorias.forEach(cat => {
                        const cancionesDeCat = setlist.filter(c => c.categoria === cat);
                        if (cancionesDeCat.length > 0) {
